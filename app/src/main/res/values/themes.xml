@@ -1,0 +1,17 @@
+<resources>
+    <!-- Base window theme (light). Compose draws everything; this only shapes the system bars. -->
+    <style name="Theme.NothingIsFree" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <!-- Splash: flat background with the dot-matrix launcher glyph. -->
+    <style name="Theme.NothingIsFree.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.NothingIsFree</item>
+    </style>
+</resources>

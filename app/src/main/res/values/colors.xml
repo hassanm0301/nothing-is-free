@@ -1,0 +1,8 @@
+<resources>
+    <!-- Nothing OS palette lives in ui/theme/Color.kt. Only window-level colours are needed here. -->
+    <color name="nothing_black">#FF000000</color>
+    <color name="nothing_white">#FFFFFFFF</color>
+
+    <!-- Window + splash background, follows system theme (see values-night). -->
+    <color name="window_background">@color/nothing_white</color>
+</resources>
