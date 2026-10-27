@@ -14,9 +14,13 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest ships an Android SDK at $ANDROID_HOME; just add the platform we compile against.
+      - name: Install Android platform 37
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0"
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew assembleDebug lintDebug --no-daemon
+      - run: ./gradlew assembleDebug testDebugUnitTest lintDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug
