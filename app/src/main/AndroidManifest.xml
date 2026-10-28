@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!--
-      Glyph groundwork: the Glyph Matrix SDK needs this permission at runtime on Nothing
-      devices. Declaring it has no effect elsewhere. Enabled when Glyph work starts.
-      <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
-    -->
+    <!-- Glyph Matrix SDK access on Nothing devices. Declaring it has no effect elsewhere. -->
+    <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
+    <!-- Keeps the clock toy's notification pulse animating while the screen is off. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:name=".NothingIsFreeApp"
@@ -26,7 +26,43 @@
             </intent-filter>
         </activity>
 
-        <!-- Widget receivers (Glance) and Glyph Toy services will be registered here. -->
+        <!-- Feeds the clock toy's pulse. Needs notification access, granted from the app. -->
+        <service
+            android:name=".core.notifications.GlyphNotificationListener"
+            android:exported="true"
+            android:label="@string/notification_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!--
+          Glyph Toy: bound by Nothing's Glyph service, which holds no permission we could require.
+          It only accepts "redraw" events, so being exported is harmless.
+        -->
+        <service
+            android:name=".glyph.toy.ClockToyService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.nothing.glyph.TOY" />
+            </intent-filter>
+            <meta-data
+                android:name="com.nothing.glyph.toy.name"
+                android:resource="@string/clock_toy_name" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.image"
+                android:resource="@drawable/clock_toy_preview" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.summary"
+                android:resource="@string/clock_toy_summary" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.aod_support"
+                android:value="1" />
+        </service>
+
+        <!-- Widget receivers (Glance) will be registered here. -->
     </application>
 
 </manifest>

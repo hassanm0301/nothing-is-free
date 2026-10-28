@@ -8,33 +8,58 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
 (the same AAR also serves the strip devices; the older Glyph Developer Kit README lists their ids).
 
 ## What exists now
+- `app/libs/glyph-matrix-sdk-2.0.aar` – the SDK, wired in through `fileTree("libs")`, plus the
+  `com.nothing.ketchum.permission.ENABLE` permission. Its EULA (section 2.1c) restricts
+  redistribution; keep that in mind if the repo is public.
 - `glyph/GlyphCapability` – what the phone can do (None / Strips / Matrix), derived from
   `core/device/NothingDevice`.
-- `glyph/GlyphController` – the app-facing interface, with `NoOpGlyphController` in use today.
-- `dotmatrix/DotMatrix` – the frame model. `toFrame()` yields the `int[]` layout the SDK takes.
-- `app/libs/` – empty, where the AAR goes.
-- `app/proguard-rules.pro` already keeps `com.nothing.ketchum.**`.
+- `glyph/GlyphController` – the app-facing interface for in-app frames, still `NoOpGlyphController`.
+- `dotmatrix/DotMatrix` – the frame model. `toFrame(max = 4095)` yields the `int[]` the SDK takes.
+- `glyph/toy/` – the **Pulse clock** AOD toy (below).
 
-## Steps to light it up
-1. Copy `glyph-matrix-sdk-*.aar` into `app/libs/` and uncomment the `fileTree("libs")` dependency
-   in `app/build.gradle.kts`.
-2. Uncomment `<uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />` in the
-   manifest.
-3. Implement `GlyphMatrixController : GlyphController`:
-   - `GlyphMatrixManager.getInstance(context)`, `init(callback)`; in `onServiceConnected` call
-     `register(Glyph.DEVICE_25111p)`.
-   - `show(frame)`: `setAppMatrixFrame(frame.toFrame())` (needs system version 20250801+;
-     `setMatrixFrame` conflicts with active toys).
-   - `clear()`: `closeAppMatrix()`; `disconnect()`: `unInit()`.
-   - Build frames with `DotMatrix(13, 13)`; `Common.getDeviceMatrixLength()` confirms the size at runtime.
-4. Return it from `GlyphModule.controller()` when `capability is GlyphCapability.Matrix`.
-5. For an AOD toy, add a `Service` with `<action android:name="com.nothing.glyph.TOY"/>` and
-   meta-data `com.nothing.glyph.toy.name`, `...toy.image`, and `com.nothing.glyph.toy.aod_support`
-   = `1` (required on the (4a) Pro). Handle `GlyphToy.EVENT_AOD` (sent each minute) in the
-   service's `Messenger` handler.
-6. Debug on device: `adb shell settings put global nt_glyph_interface_debug_enable 1`
-   (auto-disables after 48h).
+## SDK facts (read from the 2.0 AAR)
+- `Glyph.DEVICE_*` are `Build.MODEL` strings, not codenames: Phone (4a) Pro is `A069P`
+  (`DEVICE_25111p`), Phone (3) is `A024` (`DEVICE_23112`). `register()` takes these.
+- Frame values are **0..4095**. The SDK's own bitmap path scales 0..255 grey by `* 4095 / 255`;
+  raw 0..255 frames come out 16x too dim.
+- `GlyphMatrixManager.getInstance()` is a process-wide singleton.
+- `GlyphToy`: `MSG_GLYPH_TOY = 1`, bundle key `"data"`, events `"aod"`, `"change"`,
+  `"action_down"`, `"action_up"`.
+- No `NothingKey` meta-data is needed for the matrix calls.
+
+## Pulse clock toy
+Hours over minutes in 3x5 digits on the 13x13 matrix (5x7 on a 25x25). When a notification
+arrives, the outer ring breathes (2 s per breath) for the chosen window, rounded up to whole
+breaths, then the clock goes back to steady.
+
+- `glyph/toy/ClockFace` – the frame: digits, the ring, the round-matrix mask.
+- `glyph/toy/PulseWave` – the breathing curve and window maths.
+- `glyph/toy/ClockToy` – the loop: one frame a minute, 25 fps while pulsing, redraw on demand.
+- `glyph/toy/ClockToyService` – the toy service. Binds `GlyphMatrixManager`, pushes frames with
+  `setMatrixFrame`, redraws on `EVENT_AOD`, and holds a partial wake lock for the pulse window
+  only, so the animation keeps running with the screen off.
+- `glyph/toy/ClockToyPreferences` – the pulse window (10 s to 5 min, default 30 s), persisted.
+- `core/notifications/GlyphNotificationListener` – stamps `RecentNotifications` when an
+  alerting notification arrives. Skipped: our own, ongoing (media, downloads), silent channels,
+  ones Do Not Disturb blocks, and `FLAG_ONLY_ALERT_ONCE` updates to one already showing.
+- The gallery's **Glyph toy** card shows the same frame live, sets the window, opens
+  notification access, and has a **Test pulse** button.
+
+### Using it on the Phone (4a) Pro
+1. Install, open the app, tap **Grant access** and allow notification access. On a sideloaded
+   build Android may block this as a restricted setting: App info > ⋮ > Allow restricted
+   settings, then try again.
+2. Settings > Glyph Interface > Flip to Glyph > Always-on Glyph Toy > **Pulse clock**.
+3. Flip the phone. **Test pulse** in the app starts a pulse without waiting for a notification.
+
+## Next steps
+- `GlyphMatrixController : GlyphController` for in-app frames (`setAppMatrixFrame`, needs
+  system version 20250801+; `closeAppMatrix()` to release). Mind the shared singleton with the toy.
+- Debug on device: `adb shell settings put global nt_glyph_interface_debug_enable 1`
+  (auto-disables after 48h).
 
 ## Open questions
-- The `Build.MODEL` string for the (4a) Pro is not in `NothingDevice` yet; read it from the
-  gallery's Device card and add it to the table.
+- The matrix mask in `ClockFace.inCircle` assumes the LEDs fill the circle inscribed in the
+  13x13 square. If the ring sits a dot off on hardware, adjust it there.
+- The (3a) Pro (`A059P`) and (4b) model strings are not in the SDK; confirm them from the
+  gallery's Device card.

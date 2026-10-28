@@ -50,9 +50,8 @@ android {
 }
 
 dependencies {
-    // Glyph Matrix SDK groundwork: drop glyph-matrix-sdk-*.aar into app/libs and
-    // uncomment the line below when Glyph work starts. See docs/GLYPH.md.
-    // implementation(fileTree("libs") { include("*.aar") })
+    // Glyph Matrix SDK (glyph-matrix-sdk-*.aar from Nothing's GlyphMatrix-Developer-Kit). See docs/GLYPH.md.
+    implementation(fileTree("libs") { include("*.aar") })
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

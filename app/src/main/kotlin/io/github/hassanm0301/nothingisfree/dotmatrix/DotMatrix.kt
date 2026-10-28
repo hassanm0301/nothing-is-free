@@ -23,8 +23,12 @@ class DotMatrix(val width: Int, val height: Int) {
         for (y in 0 until height) for (x in 0 until width) block(x, y, cells[y * width + x])
     }
 
-    /** Copy of the raw frame, the layout `GlyphMatrixManager.setMatrixFrame(int[])` expects. */
-    fun toFrame(): IntArray = cells.copyOf()
+    /**
+     * Copy of the frame, row-major, rescaled from 0..255 to 0..[max]. This is the layout
+     * `GlyphMatrixManager.setMatrixFrame(int[])` expects; the hardware wants `max = 4095`.
+     */
+    fun toFrame(max: Int = 255): IntArray =
+        if (max == 255) cells.copyOf() else IntArray(cells.size) { cells[it] * max / 255 }
 
     /** Stamp [glyph] with its top-left at ([x], [y]). */
     fun stamp(glyph: DotGlyph, x: Int, y: Int, brightness: Int = 255) {
@@ -33,11 +37,18 @@ class DotMatrix(val width: Int, val height: Int) {
         }
     }
 
-    /** Draw a string in [DotFont], left-to-right, with a one-column gap between glyphs. */
-    fun text(text: String, x: Int = 0, y: Int = 0, brightness: Int = 255, gap: Int = 1): Int {
+    /** Draw a string in [font], left-to-right, with a one-column gap between glyphs. */
+    fun text(
+        text: String,
+        x: Int = 0,
+        y: Int = 0,
+        brightness: Int = 255,
+        gap: Int = 1,
+        font: DotTypeface = DotFont,
+    ): Int {
         var cursor = x
         for (ch in text) {
-            val glyph = DotFont[ch]
+            val glyph = font[ch]
             stamp(glyph, cursor, y, brightness)
             cursor += glyph.width + gap
         }
@@ -46,8 +57,8 @@ class DotMatrix(val width: Int, val height: Int) {
 
     companion object {
         /** Width in dots that [text] will occupy. */
-        fun measure(text: String, gap: Int = 1): Int =
-            text.sumOf { DotFont[it].width + gap } - gap
+        fun measure(text: String, gap: Int = 1, font: DotTypeface = DotFont): Int =
+            text.sumOf { font[it].width + gap } - gap
     }
 }
 

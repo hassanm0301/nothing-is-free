@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
 import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
+import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 import io.github.hassanm0301.nothingisfree.ui.components.ButtonVariant
 import io.github.hassanm0301.nothingisfree.ui.components.DotBar
 import io.github.hassanm0301.nothingisfree.ui.components.DotDivider
@@ -57,6 +58,7 @@ import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.components.PlaceholderTile
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.StatusDot
+import io.github.hassanm0301.nothingisfree.ui.glyph.PulseClockCard
 import io.github.hassanm0301.nothingisfree.ui.theme.Grey100
 import io.github.hassanm0301.nothingisfree.ui.theme.Grey400
 import io.github.hassanm0301.nothingisfree.ui.theme.Grey700
@@ -75,6 +77,8 @@ private val DateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE dd MMM
 fun GalleryScreen(viewModel: GalleryViewModel = viewModel()) {
     val now by viewModel.now.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
+    val pulseWindowSeconds by viewModel.pulseWindowSeconds.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "dev"
@@ -92,6 +96,7 @@ fun GalleryScreen(viewModel: GalleryViewModel = viewModel()) {
         ) {
             header(versionName)
             clockCard(now)
+            glyphToySection(lastAlertAt, pulseWindowSeconds, viewModel::setPulseWindowSeconds, viewModel::testPulse)
             themeSection(themeMode, viewModel::setThemeMode)
             typographySection()
             colourSection()
@@ -138,6 +143,22 @@ private fun LazyListScope.clockCard(now: java.time.LocalDateTime) = item {
             MonoLabel("Dot matrix", color = contentMuted())
         }
     }
+}
+
+private fun LazyListScope.glyphToySection(
+    lastAlertAt: Long?,
+    pulseWindowSeconds: Int,
+    onPulseWindowChange: (Int) -> Unit,
+    onTestPulse: () -> Unit,
+) = item {
+    SectionHeader("Glyph toy")
+    PulseClockCard(
+        lastAlertAt = lastAlertAt,
+        pulseWindowSeconds = pulseWindowSeconds,
+        pulseWindowChoices = ClockToyPreferences.pulseWindowChoices,
+        onPulseWindowChange = onPulseWindowChange,
+        onTestPulse = onTestPulse,
+    )
 }
 
 /** Muted tone for text inside an inverted card. */

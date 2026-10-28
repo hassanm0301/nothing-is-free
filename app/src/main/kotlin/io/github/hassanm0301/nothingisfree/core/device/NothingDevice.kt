@@ -30,16 +30,22 @@ object NothingDevice {
     val isNothing: Boolean get() = manufacturer.equals("Nothing", ignoreCase = true)
 
     /**
-     * Map of `Build.MODEL` -> model. Nothing uses "A0xx" style model numbers.
-     * TODO(device-table): confirm the (3a), (4a) and (4a) Pro model strings on hardware;
-     * the gallery's Device card prints the raw values so they can be copied in.
+     * Map of `Build.MODEL` -> model. Nothing uses "A0xx" style model numbers; these match the
+     * `Glyph.DEVICE_xxxxx` strings in the Glyph Matrix SDK 2.0, which checks `Build.MODEL` the same way.
+     * TODO(device-table): the (3a) Pro ("A059P") and (4b) strings are not in the SDK; confirm on
+     * hardware via the gallery's Device card.
      */
     private val byModel: Map<String, NothingModel> = mapOf(
         "A063" to NothingModel.PHONE_1,
         "A065" to NothingModel.PHONE_2,
+        "AIN065" to NothingModel.PHONE_2,
         "A142" to NothingModel.PHONE_2A,
-        "A059P" to NothingModel.PHONE_2A_PLUS,
+        "A142P" to NothingModel.PHONE_2A_PLUS,
+        "A059" to NothingModel.PHONE_3A,
+        "A059P" to NothingModel.PHONE_3A,
         "A024" to NothingModel.PHONE_3,
+        "A069" to NothingModel.PHONE_4A,
+        "A069P" to NothingModel.PHONE_4A_PRO,
     )
 
     val detectedModel: NothingModel

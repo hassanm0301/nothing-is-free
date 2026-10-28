@@ -3,6 +3,7 @@ package io.github.hassanm0301.nothingisfree
 import android.app.Application
 import io.github.hassanm0301.nothingisfree.glyph.GlyphController
 import io.github.hassanm0301.nothingisfree.glyph.GlyphModule
+import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 
 class NothingIsFreeApp : Application() {
 
@@ -12,6 +13,7 @@ class NothingIsFreeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        ClockToyPreferences.init(this)
     }
 
     companion object {

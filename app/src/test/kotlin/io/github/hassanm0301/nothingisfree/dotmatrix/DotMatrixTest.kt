@@ -42,6 +42,25 @@ class DotMatrixTest {
     }
 
     @Test
+    fun `toFrame rescales to the hardware range`() {
+        val m = DotMatrix(3, 1)
+        m[0, 0] = 255
+        m[1, 0] = 128
+        assertArrayEquals(intArrayOf(4095, 2055, 0), m.toFrame(max = 4095))
+    }
+
+    @Test
+    fun `text can use the small font`() {
+        assertEquals(3 + 1 + 3, DotMatrix.measure("12", font = DotFontSmall))
+        val m = DotMatrix(7, 5)
+        assertEquals(7, m.text("12", font = DotFontSmall))
+        // '1' is ".#." on top, '2' is "###".
+        assertEquals(255, m[1, 0])
+        assertEquals(0, m[0, 0])
+        assertEquals(255, m[4, 0])
+    }
+
+    @Test
     fun `a 13x13 frame matches the Phone 4a Pro matrix length`() {
         val m = DotMatrix(13, 13)
         m.text("4A", x = 1, y = 3)

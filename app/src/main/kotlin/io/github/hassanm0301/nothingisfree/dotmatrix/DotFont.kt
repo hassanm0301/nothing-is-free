@@ -1,10 +1,15 @@
 package io.github.hassanm0301.nothingisfree.dotmatrix
 
+/** A character -> [DotGlyph] lookup that [DotMatrix.text] can draw with. */
+fun interface DotTypeface {
+    operator fun get(c: Char): DotGlyph
+}
+
 /**
  * A 5x7 dot font covering digits, A-Z, and the punctuation a clock or status readout needs.
  * Unknown characters render as a blank 3-wide cell.
  */
-object DotFont {
+object DotFont : DotTypeface {
     private fun g(vararg rows: String) = DotGlyph(rows.toList())
 
     private val blank = g("...", "...", "...", "...", "...", "...", "...")
@@ -54,5 +59,31 @@ object DotFont {
         ' ' to g("..", "..", "..", "..", "..", "..", ".."),
     )
 
-    operator fun get(c: Char): DotGlyph = glyphs[c.uppercaseChar()] ?: blank
+    override operator fun get(c: Char): DotGlyph = glyphs[c.uppercaseChar()] ?: blank
+}
+
+/**
+ * A 3x5 digits-only font for small matrices, e.g. a stacked clock on the 13x13 Glyph Matrix.
+ * Anything else renders as a blank 3-wide cell.
+ */
+object DotFontSmall : DotTypeface {
+    private fun g(vararg rows: String) = DotGlyph(rows.toList())
+
+    private val blank = g("...", "...", "...", "...", "...")
+
+    private val glyphs: Map<Char, DotGlyph> = mapOf(
+        '0' to g("###", "#.#", "#.#", "#.#", "###"),
+        '1' to g(".#.", "##.", ".#.", ".#.", "###"),
+        '2' to g("###", "..#", "###", "#..", "###"),
+        '3' to g("###", "..#", "###", "..#", "###"),
+        '4' to g("#.#", "#.#", "###", "..#", "..#"),
+        '5' to g("###", "#..", "###", "..#", "###"),
+        '6' to g("###", "#..", "###", "#.#", "###"),
+        '7' to g("###", "..#", "..#", "..#", "..#"),
+        '8' to g("###", "#.#", "###", "#.#", "###"),
+        '9' to g("###", "#.#", "###", "..#", "###"),
+        ':' to g(".", "#", ".", "#", "."),
+    )
+
+    override operator fun get(c: Char): DotGlyph = glyphs[c] ?: blank
 }

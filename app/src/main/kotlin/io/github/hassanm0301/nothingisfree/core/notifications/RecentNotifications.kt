@@ -1,0 +1,40 @@
+package io.github.hassanm0301.nothingisfree.core.notifications
+
+import android.app.NotificationManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+
+/**
+ * When the last alerting notification arrived. Fed by [GlyphNotificationListener], read by the
+ * Glyph clock toy. Process-scoped: both services live in the app process and keep it alive.
+ */
+object RecentNotifications {
+    private val _lastAlertAt = MutableStateFlow<Long?>(null)
+
+    /** Wall-clock millis of the newest alerting notification, or null if none since start. */
+    val lastAlertAt: StateFlow<Long?> = _lastAlertAt.asStateFlow()
+
+    fun record(atMillis: Long) {
+        _lastAlertAt.update { previous -> maxOf(previous ?: atMillis, atMillis) }
+    }
+
+    /**
+     * Whether a posted notification should count. Skips our own, ongoing ones (media, downloads,
+     * foreground services), silent channels, ones Do Not Disturb holds back, and quiet updates
+     * (`FLAG_ONLY_ALERT_ONCE`) to a notification that is already showing.
+     */
+    fun isAlerting(
+        ownPackage: Boolean,
+        ongoing: Boolean,
+        importance: Int,
+        passesDnd: Boolean,
+        onlyAlertOnce: Boolean,
+        alreadyShowing: Boolean,
+    ): Boolean = !ownPackage &&
+        !ongoing &&
+        importance >= NotificationManager.IMPORTANCE_DEFAULT &&
+        passesDnd &&
+        !(onlyAlertOnce && alreadyShowing)
+}

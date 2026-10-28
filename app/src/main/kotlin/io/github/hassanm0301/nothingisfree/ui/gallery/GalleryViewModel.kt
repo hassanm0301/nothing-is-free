@@ -2,6 +2,8 @@ package io.github.hassanm0301.nothingisfree.ui.gallery
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
+import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 import kotlinx.coroutines.delay
@@ -24,4 +26,14 @@ class GalleryViewModel : ViewModel() {
     val themeMode: StateFlow<ThemeMode> = ThemePreferences.mode
 
     fun setThemeMode(mode: ThemeMode) = ThemePreferences.set(mode)
+
+    /** Last alerting notification, as seen by the Glyph clock toy. */
+    val lastAlertAt: StateFlow<Long?> = RecentNotifications.lastAlertAt
+
+    val pulseWindowSeconds: StateFlow<Int> = ClockToyPreferences.pulseWindowSeconds
+
+    fun setPulseWindowSeconds(seconds: Int) = ClockToyPreferences.setPulseWindowSeconds(seconds)
+
+    /** Pretend a notification just arrived, to try the pulse on the toy and in the preview. */
+    fun testPulse() = RecentNotifications.record(System.currentTimeMillis())
 }
