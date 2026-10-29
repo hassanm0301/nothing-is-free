@@ -21,3 +21,6 @@ captures/
 
 # Release signing config (see README › Releases)
 keystore.properties
+
+# Claude Code agent worktrees
+.claude/worktrees/

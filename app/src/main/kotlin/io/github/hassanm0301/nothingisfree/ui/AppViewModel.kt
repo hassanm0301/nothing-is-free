@@ -1,4 +1,4 @@
-package io.github.hassanm0301.nothingisfree.ui.gallery
+package io.github.hassanm0301.nothingisfree.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,6 +6,8 @@ import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
+import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
@@ -16,7 +18,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDateTime
 
-class GalleryViewModel : ViewModel() {
+/** State shared by the three tabs. Settings live in their own process-wide stores; this exposes them. */
+class AppViewModel : ViewModel() {
 
     /** Wall-clock, ticking once a second while something is collecting it. */
     val now: StateFlow<LocalDateTime> = flow {
@@ -30,7 +33,7 @@ class GalleryViewModel : ViewModel() {
 
     fun setThemeMode(mode: ThemeMode) = ThemePreferences.set(mode)
 
-    /** Last alerting notification, as seen by the Glyph clock toy. */
+    /** Last alerting notification, as seen by the Pulse clock toy. */
     val lastAlertAt: StateFlow<Long?> = RecentNotifications.lastAlertAt
 
     val pulseWindowSeconds: StateFlow<Int> = ClockToyPreferences.pulseWindowSeconds
@@ -40,7 +43,13 @@ class GalleryViewModel : ViewModel() {
     /** Pretend a notification just arrived, to try the pulse on the toy and in the preview. */
     fun testPulse() = RecentNotifications.record(System.currentTimeMillis())
 
-    /** Self-update from GitHub releases; checked once each time the screen is created. */
+    /** Binary clock toy options; the toy redraws as soon as they change. */
+    val binaryClock: StateFlow<BinaryClockSettings> = BinaryClockPreferences.settings
+
+    fun updateBinaryClock(transform: (BinaryClockSettings) -> BinaryClockSettings) =
+        BinaryClockPreferences.update(transform)
+
+    /** Self-update from GitHub releases; checked once each time the view model is created. */
     val update: StateFlow<AppUpdater.State> = AppUpdater.state
 
     init {

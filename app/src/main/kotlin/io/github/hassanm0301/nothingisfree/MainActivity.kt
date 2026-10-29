@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.hassanm0301.nothingisfree.ui.gallery.GalleryScreen
+import io.github.hassanm0301.nothingisfree.ui.AppScreen
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val mode by ThemePreferences.mode.collectAsStateWithLifecycle()
             NothingTheme(mode = mode) {
-                GalleryScreen()
+                AppScreen()
             }
         }
     }

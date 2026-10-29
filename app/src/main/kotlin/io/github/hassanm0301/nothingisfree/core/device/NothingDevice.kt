@@ -33,7 +33,7 @@ object NothingDevice {
      * Map of `Build.MODEL` -> model. Nothing uses "A0xx" style model numbers; these match the
      * `Glyph.DEVICE_xxxxx` strings in the Glyph Matrix SDK 2.0, which checks `Build.MODEL` the same way.
      * TODO(device-table): the (3a) Pro ("A059P") and (4b) strings are not in the SDK; confirm on
-     * hardware via the gallery's Device card.
+     * hardware via the Settings tab's Device card.
      */
     private val byModel: Map<String, NothingModel> = mapOf(
         "A063" to NothingModel.PHONE_1,

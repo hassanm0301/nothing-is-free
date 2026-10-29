@@ -41,8 +41,8 @@
         </service>
 
         <!--
-          Glyph Toy: bound by Nothing's Glyph service, which holds no permission we could require.
-          It only accepts "redraw" events, so being exported is harmless.
+          Glyph Toys: bound by Nothing's Glyph service, which holds no permission we could require.
+          They only accept "redraw" events, so being exported is harmless.
         -->
         <service
             android:name=".glyph.toy.ClockToyService"
@@ -60,6 +60,27 @@
             <meta-data
                 android:name="com.nothing.glyph.toy.summary"
                 android:resource="@string/clock_toy_summary" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.aod_support"
+                android:value="1" />
+        </service>
+
+        <service
+            android:name=".glyph.toy.BinaryClockToyService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.nothing.glyph.TOY" />
+            </intent-filter>
+            <meta-data
+                android:name="com.nothing.glyph.toy.name"
+                android:resource="@string/binary_clock_name" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.image"
+                android:resource="@drawable/binary_clock_preview" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.summary"
+                android:resource="@string/binary_clock_summary" />
             <meta-data
                 android:name="com.nothing.glyph.toy.aod_support"
                 android:value="1" />
