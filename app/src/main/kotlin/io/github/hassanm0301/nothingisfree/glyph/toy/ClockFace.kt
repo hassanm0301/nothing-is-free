@@ -31,12 +31,7 @@ class ClockFace(val size: Int) {
         }
 
     /** Whether ([x], [y]) is a physical LED, assuming the matrix is the circle inscribed in the square. */
-    fun inCircle(x: Int, y: Int): Boolean {
-        if (x !in 0 until size || y !in 0 until size) return false
-        val c = (size - 1) / 2f
-        val r = size / 2f
-        return (x - c) * (x - c) + (y - c) * (y - c) <= r * r
-    }
+    fun inCircle(x: Int, y: Int): Boolean = RoundMatrix.isLed(size, x, y)
 
     /** Draw [time] with the ring at [ringLevel] (0..255, 0 = off). */
     fun render(time: LocalTime, is24Hour: Boolean, ringLevel: Int = 0): DotMatrix {
