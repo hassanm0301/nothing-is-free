@@ -126,8 +126,9 @@ goes back to steady.
   ones Do Not Disturb blocks, and `FLAG_ONLY_ALERT_ONCE` updates to one already showing.
 
 #### Using it on the Phone (4a) Pro
-1. Install, open the app and grant notification access. On a sideloaded build Android may block
-   this as a restricted setting: App info > ⋮ > Allow restricted settings, then try again.
+1. Install and open the app: Glyph > Addons > Notification pulse > **Grant access**, and allow
+   notification access. On a sideloaded build Android may block this as a restricted setting:
+   App info > ⋮ > Allow restricted settings, then try again.
 2. Switch the pulse on for the toy you use, and pick that toy on the phone (see [toys](#toys)).
 3. Flip the phone. **Test on phone** starts a pulse without waiting for a notification.
 

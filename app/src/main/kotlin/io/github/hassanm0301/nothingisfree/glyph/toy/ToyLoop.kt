@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalTime
+import java.time.ZoneId
 
 /**
  * Drives any Glyph Toy: repaints its face on each minute, on [refresh], at once when an input
@@ -21,7 +23,7 @@ import java.time.LocalTime
 class ToyLoop(
     private val show: (DotMatrix) -> Unit,
     private val is24Hour: () -> Boolean,
-    private val clock: Clock = Clock.systemDefaultZone(),
+    private val clock: Clock = PhoneClock,
 ) {
     private val redraw = Channel<Unit>(Channel.CONFLATED)
 
@@ -71,4 +73,15 @@ class ToyLoop(
         const val FRAME_MS = 40L
         const val MINUTE_MS = 60_000L
     }
+}
+
+/**
+ * The system clock in the phone's time zone as it is now. `Clock.systemDefaultZone()` would keep
+ * the zone from when the toy started; Android resets the process default when the zone changes,
+ * so reading it on each call follows the phone (from the next repaint, at most a minute later).
+ */
+private object PhoneClock : Clock() {
+    override fun getZone(): ZoneId = ZoneId.systemDefault()
+    override fun withZone(zone: ZoneId): Clock = system(zone)
+    override fun instant(): Instant = Instant.now()
 }
