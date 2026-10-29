@@ -64,6 +64,16 @@ class ToyLoopTest {
     }
 
     @Test
+    fun `a notification with the pulse off does not repaint`() = runBlocking {
+        val alertAt = MutableStateFlow<Long?>(null)
+        val job = runLoop(pulseOn = MutableStateFlow(false), alertAt = alertAt)
+        nextFrame()
+        alertAt.value = clock.now
+        assertIdle()
+        job.cancel()
+    }
+
+    @Test
     fun `waits for the minute when idle but repaints on refresh`() = runBlocking {
         val job = runLoop()
         nextFrame()

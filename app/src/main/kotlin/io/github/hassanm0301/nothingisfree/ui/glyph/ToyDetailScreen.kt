@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
+import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
@@ -108,8 +110,13 @@ fun ToyDetailScreen(
         item {
             SectionHeader("On the phone")
             Text(
-                "Settings › Glyph Interface › Flip to Glyph › Always-on Glyph Toy › ${toy.title}. " +
-                    "Changes here show on the matrix straight away.",
+                if (GlyphCapability.of(NothingDevice.detectedModel) is GlyphCapability.Matrix) {
+                    "Settings › Glyph Interface › Flip to Glyph › Always-on Glyph Toy › ${toy.title}. " +
+                        "Changes here show on the matrix straight away."
+                } else {
+                    "This phone has no Glyph Matrix. On a Phone (4a) Pro, pick it in Settings › Glyph " +
+                        "Interface › Flip to Glyph › Always-on Glyph Toy › ${toy.title}."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = NothingTheme.colors.muted,
             )

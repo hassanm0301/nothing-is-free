@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +84,10 @@ fun GlyphScreen(viewModel: AppViewModel, insets: PaddingValues) {
         emptyList<String>().toMutableStateList()
     }
     val pages = stack.mapNotNull(GlyphPage::of)
-    val pop = { stack.removeAt(stack.lastIndex) }
+    // Two back events can land before BackHandler sees the stack shrink; never pop past empty.
+    val pop = { stack.removeLastOrNull() }
+    // A quick double tap would otherwise open the same page twice.
+    val push = { key: String -> if (stack.lastOrNull() != key) stack += key }
     BackHandler(enabled = stack.isNotEmpty()) { pop() }
     // Keeps each page's scroll position while another one is showing.
     val pageState = rememberSaveableStateHolder()
@@ -96,7 +100,7 @@ fun GlyphScreen(viewModel: AppViewModel, insets: PaddingValues) {
                 viewModel = viewModel,
                 insets = insets,
                 onBack = { pop() },
-                onOpenAddon = { stack += GlyphPage.Addon(it).key },
+                onOpenAddon = { push(GlyphPage.Addon(it).key) },
             )
             is GlyphPage.Addon -> AddonDetailScreen(
                 addon = page.id,
@@ -105,7 +109,7 @@ fun GlyphScreen(viewModel: AppViewModel, insets: PaddingValues) {
                 back = pages.getOrNull(pages.size - 2)?.title ?: "Glyph",
                 onBack = { pop() },
             )
-            null -> GlyphLists(section, { section = it }, viewModel, insets, onOpen = { stack += it.key })
+            null -> GlyphLists(section, { section = it }, viewModel, insets, onOpen = { push(it.key) })
         }
     }
 }
@@ -128,7 +132,11 @@ private fun GlyphLists(
     val matrix = GlyphCapability.of(model) as? GlyphCapability.Matrix
     val kicker = if (matrix != null) "${model.marketingName} · ${matrix.width}×${matrix.width} matrix" else "Preview only"
     val body = when (section) {
-        GlyphSection.TOYS -> "Always-on toys for the matrix on the back. Tap one for its settings and a preview."
+        GlyphSection.TOYS -> if (matrix != null) {
+            "Always-on toys for the matrix on the back. Tap one for its settings and a preview."
+        } else {
+            "This phone has no Glyph Matrix, so toys only run as previews here. Tap one to try it."
+        }
         GlyphSection.ADDONS -> "Addons draw on top of any toy. Tap one to choose which toys it's on."
     }
 
@@ -147,13 +155,14 @@ private fun GlyphLists(
             GlyphSection.TOYS -> items(ToyId.entries, key = { it.name }) { toy ->
                 val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
                 val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
-                val pulse by rememberPulse(lastAlertAt, pulseWindowSeconds, pulseOn)
+                val pulse = rememberPulse(lastAlertAt, pulseWindowSeconds, pulseOn)
+                val level by remember { derivedStateOf { pulse.value.level } }
                 ListCard(
                     title = toy.title,
                     body = toy.summary,
                     tags = AddonId.entries.filter { toy in addons[it].orEmpty() }.map { "+ ${it.title}" },
                     onClick = { onOpen(GlyphPage.Toy(toy)) },
-                    leading = { ToyMatrix(face, now, pulse.level, Modifier.size(72.dp)) },
+                    leading = { ToyMatrix(face, now, level, Modifier.size(72.dp)) },
                 )
             }
             GlyphSection.ADDONS -> items(AddonId.entries, key = { it.name }) { addon ->

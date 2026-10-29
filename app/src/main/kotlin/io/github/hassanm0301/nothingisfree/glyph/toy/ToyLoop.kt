@@ -8,6 +8,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
@@ -47,7 +48,10 @@ class ToyLoop(
         val withRing = faces.map { it to NotificationPulse.ring(it) }
         combine(withRing, pulseOn, lastAlertAt, pulseWindowSeconds) { (face, ring), on, alertAt, seconds ->
             Scene(face, ring, alertAt?.takeIf { on }, seconds * 1_000L)
-        }.collectLatest(::paint)
+        }
+            // With the pulse off, a new alert changes nothing on screen; don't repaint for it.
+            .distinctUntilChanged()
+            .collectLatest(::paint)
     }
 
     private suspend fun paint(scene: Scene) {
@@ -62,7 +66,7 @@ class ToyLoop(
     }
 
     /** What to paint until an input changes. [alertAt] is null while the pulse is off for the toy. */
-    private class Scene(
+    private data class Scene(
         val face: ToyFace,
         val ring: List<Pair<Int, Int>>,
         val alertAt: Long?,

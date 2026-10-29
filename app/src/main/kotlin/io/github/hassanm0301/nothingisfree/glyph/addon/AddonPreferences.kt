@@ -56,7 +56,8 @@ object AddonPreferences {
                 ?.mapNotNull { name -> ToyId.entries.firstOrNull { it.name == name } }?.toSet()
                 ?: defaults[addon].orEmpty()
         }
-        // Before addons, the window belonged to the Pulse clock toy; carry it over once.
+        // Before addons, the window belonged to the Pulse clock toy. Until a window is picked here,
+        // keep using that one (the old prefs file is never deleted).
         val legacy = context.getSharedPreferences("glyph_clock_toy", Context.MODE_PRIVATE)
         _pulseWindowSeconds.value = when {
             p.contains(KEY_PULSE_WINDOW) -> p.getInt(KEY_PULSE_WINDOW, DEFAULT_PULSE_WINDOW_SECONDS)

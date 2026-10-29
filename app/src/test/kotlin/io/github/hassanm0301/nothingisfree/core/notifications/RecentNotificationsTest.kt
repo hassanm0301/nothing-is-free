@@ -6,9 +6,14 @@ import android.app.NotificationManager.IMPORTANCE_LOW
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class RecentNotificationsTest {
+
+    @Before
+    fun reset() = RecentNotifications.clear()
+
 
     private fun alerting(
         ownPackage: Boolean = false,
@@ -47,5 +52,16 @@ class RecentNotificationsTest {
         assertEquals(5_000L, RecentNotifications.lastAlertAt.value)
         RecentNotifications.record(6_000)
         assertEquals(6_000L, RecentNotifications.lastAlertAt.value)
+    }
+
+    @Test
+    fun `a time left in the future by a clock set back gives way to the next alert`() {
+        RecentNotifications.record(100_000, now = 100_000)
+        // The clock goes back an hour; the next notification must still count.
+        RecentNotifications.record(40_000, now = 40_000)
+        assertEquals(40_000L, RecentNotifications.lastAlertAt.value)
+        // And a post time ahead of the clock is clamped to now.
+        RecentNotifications.record(90_000, now = 50_000)
+        assertEquals(50_000L, RecentNotifications.lastAlertAt.value)
     }
 }

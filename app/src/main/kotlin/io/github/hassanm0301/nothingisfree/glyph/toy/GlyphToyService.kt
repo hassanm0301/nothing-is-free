@@ -108,13 +108,13 @@ abstract class GlyphToyService : Service() {
         jobs = listOf(
             scope.launch { toyLoop.run(faces(size), pulseOn, alerts, window) },
             scope.launch {
-                // Held for what is left of the pulse, and let go early if it is switched off.
-                combine(pulseOn, alerts, window) { on, at, seconds ->
-                    at?.takeIf { on }?.plus(PulseWave.duration(seconds * 1_000L))
-                }.collect { until ->
-                    val remaining = (until ?: 0L) - System.currentTimeMillis()
-                    if (remaining > 0) wakeLock.acquire(remaining) else releaseWakeLock()
-                }
+                // Held for what is left of a running pulse, and let go early if it is switched off.
+                // A pulse that hasn't started (an alert time ahead of a clock set back) holds nothing.
+                combine(pulseOn, alerts, window) { on, at, seconds -> Triple(on, at, seconds * 1_000L) }
+                    .collect { (on, at, windowMs) ->
+                        val elapsed = PulseWave.elapsed(at?.takeIf { on }, windowMs, System.currentTimeMillis())
+                        if (elapsed != null) wakeLock.acquire(PulseWave.duration(windowMs) - elapsed) else releaseWakeLock()
+                    }
             },
         )
     }
