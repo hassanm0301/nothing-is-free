@@ -55,10 +55,11 @@ fun BinaryClockCard(
     val context = LocalContext.current
     val face = remember { BinaryClockFace(13) }
     val is24Hour = DateFormat.is24HourFormat(context)
-    val time by produceState(LocalTime.now()) {
+    // Ticks each second rather than each minute so it catches up straight after sleep or a time change.
+    val time by produceState(LocalTime.now().withNano(0)) {
         while (true) {
-            value = LocalTime.now()
-            delay(60_000L - System.currentTimeMillis() % 60_000L)
+            value = LocalTime.now().withNano(0)
+            delay(1_000L - System.currentTimeMillis() % 1_000L)
         }
     }
     val frame = remember(time.hour, time.minute, is24Hour, settings) { face.render(time, is24Hour, settings) }
@@ -108,13 +109,19 @@ fun BinaryClockCard(
         DotDivider()
         Spacer(Modifier.height(Spacing.md))
 
-        BrightnessControl("Active brightness", settings.activeBrightness) { v ->
-            onChange { it.copy(activeBrightness = v) }
-        }
+        BrightnessControl(
+            "Active brightness",
+            settings.activeBrightness,
+            onValueChange = { v -> onChange { it.copy(activeBrightness = v) } },
+            onStep = { d -> onChange { it.copy(activeBrightness = (it.activeBrightness + d).coerceIn(0, 255)) } },
+        )
         Spacer(Modifier.height(Spacing.md))
-        BrightnessControl("Inactive brightness", settings.inactiveBrightness) { v ->
-            onChange { it.copy(inactiveBrightness = v) }
-        }
+        BrightnessControl(
+            "Inactive brightness",
+            settings.inactiveBrightness,
+            onValueChange = { v -> onChange { it.copy(inactiveBrightness = v) } },
+            onStep = { d -> onChange { it.copy(inactiveBrightness = (it.inactiveBrightness + d).coerceIn(0, 255)) } },
+        )
         Spacer(Modifier.height(Spacing.lg))
 
         Text(
@@ -125,20 +132,23 @@ fun BinaryClockCard(
     }
 }
 
-/** A 0..255 brightness: label and value, then a slider with ±1 steps for exact values. */
+/**
+ * A 0..255 brightness: label and value, then a slider with ±1 steps for exact values. [onStep]
+ * gets the step (+1 or -1) rather than a new value, so it applies to the latest stored value.
+ */
 @Composable
-private fun BrightnessControl(label: String, value: Int, onValueChange: (Int) -> Unit) {
+private fun BrightnessControl(label: String, value: Int, onValueChange: (Int) -> Unit, onStep: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         MonoLabel(label, Modifier.weight(1f))
         MonoLabel("$value / 255", color = MaterialTheme.colorScheme.onBackground)
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         StepButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Decrease $label", enabled = value > 0) {
-            onValueChange(value - 1)
+            onStep(-1)
         }
         NothingSlider(value, onValueChange, range = 0..255, modifier = Modifier.weight(1f))
         StepButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Increase $label", enabled = value < 255) {
-            onValueChange(value + 1)
+            onStep(1)
         }
     }
 }

@@ -32,6 +32,11 @@ private enum class AppTab(val tab: NothingTab) {
     SETTINGS(NothingTab("Settings", TabIcons.Settings)),
 }
 
+/** An update is waiting, downloading, installing, or failed part-way: worth a dot on Settings. */
+private val AppUpdater.State.needsAttention: Boolean
+    get() = this is AppUpdater.State.Available || this is AppUpdater.State.Downloading ||
+        this is AppUpdater.State.Installing || (this is AppUpdater.State.Failed && release != null)
+
 /** The app: three tabs over a Nothing tab bar. Back from another tab returns to Glyph. */
 @Composable
 fun AppScreen(viewModel: AppViewModel = viewModel()) {
@@ -48,7 +53,7 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
                 tabs = AppTab.entries.map { it.tab },
                 selected = current.ordinal,
                 onSelect = { current = AppTab.entries[it] },
-                badged = { it == AppTab.SETTINGS.ordinal && update is AppUpdater.State.Available },
+                badged = { it == AppTab.SETTINGS.ordinal && update.needsAttention },
             )
         },
     ) { insets ->

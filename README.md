@@ -1,9 +1,13 @@
 # Nothing is Free
 
 An Android app in the style of Nothing OS. Jetpack Compose, Kotlin, min Android 14.
-Currently a styled base: theme, type, component kit and a gallery screen, plus a first Glyph
-Toy for the Phone (4a) Pro: **Pulse clock**, a digital clock whose ring breathes after a
-notification (see `docs/GLYPH.md`). Home-screen widgets are next.
+Three tabs:
+- **Glyph** – two always-on Glyph Toys for the Phone (4a) Pro, each with a live preview and its
+  options: **Pulse clock**, a digital clock whose ring breathes after a notification, and
+  **Binary clock**, HH:MM in BCD with dot or 2x2 square bits and adjustable active/inactive
+  brightness (see `docs/GLYPH.md`).
+- **Widgets** – previews of the home-screen widgets to come.
+- **Settings** – updates, theme, device info and about.
 
 ## Build
 Requires JDK 17+ and an Android SDK with platform 37.
@@ -17,7 +21,7 @@ The APK lands in `app/build/outputs/apk/debug/app-debug.apk`. Install with
 
 ## Updates
 On launch the app asks GitHub for the latest release of `hassanm0301/nothing-is-free`. If its tag
-(e.g. `v0.2.0`) is newer than `versionName`, the gallery shows an update card; **Update** downloads
+(e.g. `v0.2.0`) is newer than `versionName`, the Settings tab shows an update card (and its tab gets a red dot); **Update** downloads
 the release's `.apk` asset and installs it with `PackageInstaller`. The first time, Android asks
 to allow "Install unknown apps" and to confirm the install. After that this app is the installer
 of record, so later updates may skip the prompt.
@@ -53,14 +57,16 @@ CI reads the key from these repository secrets (Settings › Secrets and variabl
 app/src/main/kotlin/io/github/hassanm0301/nothingisfree/
   ui/theme/        colours, type (Ndot / NType 82 / Lettera Mono), shapes, spacing, theme mode
   ui/components/   the Nothing component kit
-  ui/gallery/      the gallery screen + view model
+  ui/              AppScreen (tab bar + tabs) and the shared AppViewModel
   dotmatrix/       DotMatrix frame model, 5x7 dot font, Compose renderer
   core/device/     Nothing device detection
   core/notifications/  notification listener feeding the Glyph pulse
   core/update/     self-update from GitHub releases (check, download, PackageInstaller)
   glyph/           GlyphCapability + GlyphController (in-app frames, still a no-op)
-  glyph/toy/       the Pulse clock Glyph Toy: face, pulse, service, settings
-  ui/glyph/        the Pulse clock card (live preview + settings)
+  glyph/toy/       the Glyph Toys (Pulse clock, Binary clock) on a shared GlyphToyService
+  ui/glyph/        Glyph tab: toy cards with live previews and settings
+  ui/widgets/      Widgets tab
+  ui/settings/     Settings tab
   ui/update/       the update card
   widget/          empty; Glance widgets go here
 docs/              DESIGN.md, GLYPH.md, WIDGETS.md

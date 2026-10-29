@@ -19,6 +19,10 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   - `GlyphToyService` – the base service. Binds `GlyphMatrixManager` and registers the device,
     pushes frames with `setMatrixFrame` (dropped frames are logged), and forwards `EVENT_AOD`.
     Each toy only implements `onToyStart` / `onAod` / `onToyStop`.
+  - `MatrixArbiter` – shares the SDK's singleton manager between toys: `init` for the first bound
+    toy, `turnOff` + `unInit` after the last, and only the most recently bound toy draws. The
+    Glyph service may bind a newly picked toy before unbinding the old one; without this the new
+    toy stayed blank and the old one's `unInit` tore down the shared connection.
   - `RoundMatrix` – the round LED mask both faces draw inside.
 
 ## SDK facts (read from the 2.0 AAR)
@@ -46,7 +50,7 @@ breaths, then the clock goes back to steady.
 - `core/notifications/GlyphNotificationListener` – stamps `RecentNotifications` when an
   alerting notification arrives. Skipped: our own, ongoing (media, downloads), silent channels,
   ones Do Not Disturb blocks, and `FLAG_ONLY_ALERT_ONCE` updates to one already showing.
-- The gallery's **Glyph toy** card shows the same frame live, sets the window, opens
+- The **Glyph** tab's Pulse clock card shows the same frame live, sets the window, opens
   notification access, and has a **Test pulse** button.
 
 ### Using it on the Phone (4a) Pro
@@ -67,8 +71,9 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
   LED per bit.
 - **Dot gap** – for `DOT` only: a dark LED between bits (7x7) or none (4x4). Squares always
   touch; with gaps they would not fit the round 13x13 matrix.
-- **Unused bits** – the bits a digit never needs (8 and 4 of the hours tens, 8 of the minutes
-  tens) stay dark, or show at the inactive brightness to complete the 4x4 grid.
+- **Unused bits** – the bits a digit never needs (8 and 4 of the hours tens, and its 2 on a
+  12-hour clock; 8 of the minutes tens) stay dark, or show at the inactive brightness to
+  complete the 4x4 grid.
 - **Active / inactive brightness** – 0..255, rescaled to the hardware's 0..4095. Inactive 0 leaves
   clear bits dark, so only the set bits show.
 
@@ -78,6 +83,8 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 - `glyph/toy/BinaryClockToyService` – the toy service, on `GlyphToyService`. Redraws on
   `EVENT_AOD`. No wake lock: the frame only changes once a minute.
 - `glyph/toy/BinaryClockPreferences` – the settings, persisted.
+- The **Glyph** tab's Binary clock card shows the same frame live (the preview approximates how
+  bright a dimmed LED looks) and sets every option, with ±1 steps on the brightness sliders.
 
 ### Using it on the Phone (4a) Pro
 1. Install. No notification access is needed.
@@ -94,4 +101,4 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 - The matrix mask in `RoundMatrix.isLed` assumes the LEDs fill the circle inscribed in the
   13x13 square. If the ring sits a dot off on hardware, adjust it there; both toys use it.
 - The (3a) Pro (`A059P`) and (4b) model strings are not in the SDK; confirm them from the
-  gallery's Device card.
+  Device card in the app's Settings tab.

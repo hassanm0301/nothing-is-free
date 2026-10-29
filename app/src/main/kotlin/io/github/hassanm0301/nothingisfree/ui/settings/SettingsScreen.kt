@@ -78,7 +78,10 @@ fun SettingsScreen(viewModel: AppViewModel, insets: PaddingValues) {
                 "Source",
                 subtitle = "github.com/${GitHubReleases.REPO}",
                 modifier = Modifier.clickable {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/${GitHubReleases.REPO}".toUri()))
+                    // Nothing to open it with on a phone without a browser.
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/${GitHubReleases.REPO}".toUri()))
+                    }
                 },
                 trailing = {
                     Icon(
@@ -89,7 +92,7 @@ fun SettingsScreen(viewModel: AppViewModel, insets: PaddingValues) {
                 },
             )
             DotDivider()
-            NothingListRow("Fonts", subtitle = "Ndot · NType 82 · Lettera Mono, via xeji01/nothingfont")
+            NothingListRow("Fonts", subtitle = "Ndot · NType 82 · Lettera Mono")
         }
     }
 }

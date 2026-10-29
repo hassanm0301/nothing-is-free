@@ -20,15 +20,20 @@ import kotlinx.coroutines.cancel
 
 /**
  * Base for this app's Glyph Toys. The Glyph service binds a toy when the user picks it and unbinds
- * it when they leave; in between this holds the [GlyphMatrixManager] and pushes frames to it.
- * Subclasses only draw: [onToyStart] once the matrix is ready, [onAod] on each AOD tick.
+ * it when they leave; in between the toy draws on the [GlyphMatrixManager], which every toy in
+ * the process shares through [arbiter]. Subclasses only draw: [onToyStart] once the matrix is
+ * theirs, [onAod] on each AOD tick.
  */
 abstract class GlyphToyService : Service() {
 
     protected val scope = MainScope()
     private val tag = javaClass.simpleName
-    private var manager: GlyphMatrixManager? = null
     private var jobs: List<Job> = emptyList()
+
+    private val client = object : MatrixArbiter.Client<GlyphMatrixManager> {
+        override fun start(matrix: GlyphMatrixManager) = this@GlyphToyService.start(matrix)
+        override fun stop() = this@GlyphToyService.stop()
+    }
 
     /** The Glyph service sends toy events here; on the (4a) Pro, [GlyphToy.EVENT_AOD] arrives each minute. */
     private val messenger = Messenger(
@@ -55,27 +60,13 @@ abstract class GlyphToyService : Service() {
     protected open fun onToyStop() {}
 
     override fun onBind(intent: Intent): IBinder {
-        val gm = GlyphMatrixManager.getInstance(applicationContext)
-        manager = gm
-        gm.init(
-            object : GlyphMatrixManager.Callback {
-                override fun onServiceConnected(name: ComponentName) {
-                    val device = if (Common.is25111p()) Glyph.DEVICE_25111p else Glyph.DEVICE_23112
-                    if (!gm.register(device)) Log.w(tag, "Glyph service did not authorise $device")
-                    start(gm)
-                }
-
-                override fun onServiceDisconnected(name: ComponentName) = stop()
-            },
-        )
+        arbiter(this).acquire(client)
         return messenger.binder
     }
 
     override fun onUnbind(intent: Intent): Boolean {
+        arbiter(this).release(client)
         stop()
-        manager?.turnOff()
-        manager?.unInit()
-        manager = null
         return false
     }
 
@@ -103,9 +94,37 @@ abstract class GlyphToyService : Service() {
     }
 
     private companion object {
+        const val TAG = "GlyphToyService"
         const val DEFAULT_SIZE = 13
 
         /** Hardware brightness ceiling; the SDK scales its own 0..255 inputs up to this. */
         const val GLYPH_MAX_BRIGHTNESS = 4095
+
+        private var shared: MatrixArbiter<GlyphMatrixManager>? = null
+
+        /** The process-wide matrix connection: opened for the first bound toy, closed after the last. */
+        fun arbiter(service: Service): MatrixArbiter<GlyphMatrixManager> = shared ?: run {
+            val gm = GlyphMatrixManager.getInstance(service.applicationContext)
+            MatrixArbiter<GlyphMatrixManager>(
+                open = { onConnected, onDisconnected ->
+                    gm.init(
+                        object : GlyphMatrixManager.Callback {
+                            override fun onServiceConnected(name: ComponentName) {
+                                val device = if (Common.is25111p()) Glyph.DEVICE_25111p else Glyph.DEVICE_23112
+                                if (!gm.register(device)) Log.w(TAG, "Glyph service did not authorise $device")
+                                onConnected(gm)
+                            }
+
+                            override fun onServiceDisconnected(name: ComponentName) = onDisconnected()
+                        },
+                    )
+                },
+                close = {
+                    gm.turnOff()
+                    // A connection the system already dropped is no longer registered; unbinding it throws.
+                    runCatching { gm.unInit() }.onFailure { Log.w(TAG, "unInit failed", it) }
+                },
+            ).also { shared = it }
+        }
     }
 }
