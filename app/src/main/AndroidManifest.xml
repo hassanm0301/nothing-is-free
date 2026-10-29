@@ -4,7 +4,7 @@
 
     <!-- Glyph Matrix SDK access on Nothing devices. Declaring it has no effect elsewhere. -->
     <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
-    <!-- Keeps the clock toy's notification pulse animating while the screen is off. -->
+    <!-- Keeps the notification pulse addon animating while the screen is off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Self-update: fetch the latest GitHub release and install its APK. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -29,7 +29,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Feeds the clock toy's pulse. Needs notification access, granted from the app. -->
+        <!-- Feeds the notification pulse addon. Needs notification access, granted from the app. -->
         <service
             android:name=".core.notifications.GlyphNotificationListener"
             android:exported="true"

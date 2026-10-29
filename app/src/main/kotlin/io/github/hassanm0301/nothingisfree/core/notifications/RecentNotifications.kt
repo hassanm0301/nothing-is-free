@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.update
 
 /**
  * When the last alerting notification arrived. Fed by [GlyphNotificationListener], read by the
- * Glyph clock toy. Process-scoped: both services live in the app process and keep it alive.
+ * Glyph Toys for the notification pulse addon. Process-scoped: the listener and the toys live in
+ * the app process and keep it alive.
  */
 object RecentNotifications {
     private val _lastAlertAt = MutableStateFlow<Long?>(null)
