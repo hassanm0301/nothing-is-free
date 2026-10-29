@@ -73,9 +73,12 @@ class BinaryClockFaceTest {
 
     @Test
     fun `12 hour clock shows 12 at midnight and 01 after noon`() {
+        // With unused bits shown, the hours "2" bit looks the same either way: clear on a 24-hour
+        // clock, unused on a 12-hour one.
+        val shown = squares.copy(showUnusedBits = true)
         fun same(twelve: LocalTime, twentyFour: LocalTime) = assertEquals(
-            face.render(twentyFour, is24Hour = true, squares).cells(),
-            face.render(twelve, is24Hour = false, squares).cells(),
+            face.render(twentyFour, is24Hour = true, shown).cells(),
+            face.render(twelve, is24Hour = false, shown).cells(),
         )
         same(LocalTime.of(21, 47), LocalTime.of(9, 47))
         same(LocalTime.of(0, 5), LocalTime.of(12, 5))
@@ -84,6 +87,16 @@ class BinaryClockFaceTest {
             face.render(LocalTime.of(13, 0), is24Hour = true, squares).cells(),
             face.render(LocalTime.of(1, 0), is24Hour = true, squares).cells(),
         )
+    }
+
+    @Test
+    fun `12 hour clock leaves the hours 2 bit dark as unused`() {
+        // Squares: origin 3, columns 2 wide; the hours-tens "2" bit is the third row (y 7..8).
+        val twentyFour = face.render(LocalTime.of(9, 47), is24Hour = true, squares)
+        val twelve = face.render(LocalTime.of(9, 47), is24Hour = false, squares)
+        assertEquals(squares.inactiveBrightness, twentyFour[3, 7])
+        assertEquals(0, twelve[3, 7])
+        assertEquals(squares.inactiveBrightness, twelve[3, 9])
     }
 
     @Test

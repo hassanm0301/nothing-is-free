@@ -67,7 +67,13 @@ private fun ClockWidget(now: LocalDateTime) {
         val muted = LocalContentColor.current.copy(alpha = 0.55f)
         MonoLabel(now.format(DateFmt), color = muted)
         Spacer(Modifier.height(Spacing.md))
-        DotMatrixClock(now.toLocalTime(), Modifier.fillMaxWidth())
+        // The theme's dot colours are for the page background; follow the inverted card instead.
+        DotMatrixClock(
+            now.toLocalTime(),
+            Modifier.fillMaxWidth(),
+            onColor = LocalContentColor.current,
+            offColor = LocalContentColor.current.copy(alpha = 0.12f),
+        )
         Spacer(Modifier.height(Spacing.md))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(

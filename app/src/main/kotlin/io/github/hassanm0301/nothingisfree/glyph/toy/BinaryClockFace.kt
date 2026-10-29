@@ -18,6 +18,9 @@ class BinaryClockFace(val size: Int) {
     fun render(time: LocalTime, is24Hour: Boolean, settings: BinaryClockSettings): DotMatrix {
         val hour = if (is24Hour) time.hour else (time.hour + 11) % 12 + 1
         val digits = intArrayOf(hour / 10, hour % 10, time.minute / 10, time.minute % 10)
+        // Bits each digit can need: hours tens 0..2 (0..1 on a 12-hour clock), hours units 0..9,
+        // minutes tens 0..5, minutes units 0..9.
+        val bitsPerDigit = intArrayOf(if (is24Hour) 2 else 1, 4, 3, 4)
 
         val bit = scale * if (settings.style == BitStyle.SQUARE) 2 else 1
         val gap = if (settings.style == BitStyle.DOT && settings.dotGap) scale else 0
@@ -31,7 +34,7 @@ class BinaryClockFace(val size: Int) {
                 for (row in 0 until ROWS) {
                     val weight = ROWS - 1 - row
                     val level = when {
-                        weight >= BITS_PER_DIGIT[col] ->
+                        weight >= bitsPerDigit[col] ->
                             if (settings.showUnusedBits) settings.inactiveBrightness else 0
                         (value shr weight) and 1 == 1 -> settings.activeBrightness
                         else -> settings.inactiveBrightness
@@ -47,8 +50,5 @@ class BinaryClockFace(val size: Int) {
 
     private companion object {
         const val ROWS = 4
-
-        /** Bits each digit can need: hours tens 0..2, hours units 0..9, minutes tens 0..5, minutes units 0..9. */
-        val BITS_PER_DIGIT = intArrayOf(2, 4, 3, 4)
     }
 }
