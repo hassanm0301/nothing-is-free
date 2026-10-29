@@ -6,12 +6,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
+import kotlin.math.pow
 
 /**
- * Renders a [DotMatrix] as round dots. Lit cells use [onColor] scaled by brightness,
- * unlit cells draw [offColor] so the grid itself reads as hardware. Cells where [isDot] is false
- * are left empty, e.g. the corners of a round Glyph Matrix.
+ * Renders a [DotMatrix] as round dots. Lit cells blend from [offColor] to [onColor] by perceived
+ * brightness, unlit cells draw [offColor] so the grid itself reads as hardware. Cells where [isDot]
+ * is false are left empty, e.g. the corners of a round Glyph Matrix.
  */
 @Composable
 fun DotMatrixCanvas(
@@ -30,9 +32,15 @@ fun DotMatrixCanvas(
             if (!isDot(x, y)) return@forEach
             val center = Offset((x + 0.5f) * cell, (y + 0.5f) * cell)
             when {
-                value > 0 -> drawCircle(onColor.copy(alpha = value / 255f), radius, center)
+                value > 0 -> drawCircle(lerp(offColor, onColor, perceived(value)), radius, center)
                 showOff -> drawCircle(offColor, radius, center)
             }
         }
     }
 }
+
+/**
+ * How bright an LED driven at [value] (0..255) looks, 0..1. The eye is far more sensitive at the
+ * low end, so a dim 24 on the matrix is clearly visible; a linear preview would hide it.
+ */
+private fun perceived(value: Int): Float = (value / 255f).pow(1 / 2.2f)

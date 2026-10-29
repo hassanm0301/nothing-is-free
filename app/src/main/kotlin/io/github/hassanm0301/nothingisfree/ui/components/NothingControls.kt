@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -28,6 +30,7 @@ import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.PillShape
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** Monochrome switch: on = ink track with paper thumb, off = hairline track with muted thumb. */
@@ -52,6 +55,34 @@ fun NothingSwitch(
             uncheckedThumbColor = nothing.muted,
             uncheckedTrackColor = nothing.card,
             uncheckedBorderColor = nothing.hairline,
+        ),
+    )
+}
+
+/** Monochrome slider over whole numbers: ink thumb and track, hairline for the rest. */
+@Composable
+fun NothingSlider(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    range: IntRange,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val nothing = NothingTheme.colors
+    Slider(
+        value = value.toFloat(),
+        onValueChange = { onValueChange(it.roundToInt().coerceIn(range)) },
+        modifier = modifier,
+        enabled = enabled,
+        valueRange = range.first.toFloat()..range.last.toFloat(),
+        colors = SliderDefaults.colors(
+            thumbColor = scheme.onBackground,
+            activeTrackColor = scheme.onBackground,
+            inactiveTrackColor = nothing.hairline,
+            disabledThumbColor = nothing.muted,
+            disabledActiveTrackColor = nothing.muted,
+            disabledInactiveTrackColor = nothing.hairline,
         ),
     )
 }
