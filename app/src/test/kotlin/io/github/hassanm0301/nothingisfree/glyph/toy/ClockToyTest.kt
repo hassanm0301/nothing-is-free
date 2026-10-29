@@ -1,6 +1,9 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
+import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
+import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -19,7 +22,7 @@ class ClockToyTest {
     private val face = ClockFace(13)
     private val frames = Channel<DotMatrix>(Channel.UNLIMITED)
     private val toy = ClockToy(face, show = { frames.trySend(it) }, is24Hour = { true }, clock = clock)
-    private val top = face.ring.first()
+    private val top = NotificationPulse.ring(face).first()
 
     private suspend fun nextFrame() = withTimeout(1_000) { frames.receive() }
 
@@ -29,7 +32,7 @@ class ClockToyTest {
         val job = launch { toy.run(alertAt, MutableStateFlow(30)) }
 
         // Half a period in is the peak of the breath.
-        val expected = face.render(LocalTime.of(9, 41, 30), is24Hour = true, ringLevel = 255)
+        val expected = face.frame(LocalTime.of(9, 41, 30), is24Hour = true, pulseLevel = 255)
         assertEquals(expected.toFrame().toList(), nextFrame().toFrame().toList())
         // Still pulsing, so another frame follows within a frame interval.
         assertEquals(255, nextFrame()[top.first, top.second])

@@ -6,9 +6,9 @@ import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
-import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 import kotlinx.coroutines.delay
@@ -36,9 +36,9 @@ class AppViewModel : ViewModel() {
     /** Last alerting notification, as seen by the Pulse clock toy. */
     val lastAlertAt: StateFlow<Long?> = RecentNotifications.lastAlertAt
 
-    val pulseWindowSeconds: StateFlow<Int> = ClockToyPreferences.pulseWindowSeconds
+    val pulseWindowSeconds: StateFlow<Int> = AddonPreferences.pulseWindowSeconds
 
-    fun setPulseWindowSeconds(seconds: Int) = ClockToyPreferences.setPulseWindowSeconds(seconds)
+    fun setPulseWindowSeconds(seconds: Int) = AddonPreferences.setPulseWindowSeconds(seconds)
 
     /** Pretend a notification just arrived, to try the pulse on the toy and in the preview. */
     fun testPulse() = RecentNotifications.record(System.currentTimeMillis())

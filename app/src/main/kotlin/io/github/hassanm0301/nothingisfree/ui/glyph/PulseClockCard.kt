@@ -26,8 +26,9 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import io.github.hassanm0301.nothingisfree.core.notifications.GlyphNotificationListener
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrixCanvas
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
+import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import io.github.hassanm0301.nothingisfree.glyph.toy.ClockFace
-import io.github.hassanm0301.nothingisfree.glyph.toy.PulseWave
 import io.github.hassanm0301.nothingisfree.ui.components.ButtonVariant
 import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
@@ -63,7 +64,7 @@ fun PulseClockCard(
             val now = System.currentTimeMillis()
             val elapsed = PulseWave.elapsed(lastAlertAt, windowMs, now)
             val ring = elapsed?.let(PulseWave::level) ?: 0
-            value = Preview(face.render(LocalTime.now(), is24Hour, ring), pulsing = elapsed != null)
+            value = Preview(face.frame(LocalTime.now(), is24Hour, ring), pulsing = elapsed != null)
             if (elapsed != null) withFrameMillis { } else delay(1_000L - now % 1_000L)
         }
     }

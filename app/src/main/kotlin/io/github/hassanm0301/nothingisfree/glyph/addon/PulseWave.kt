@@ -1,4 +1,4 @@
-package io.github.hassanm0301.nothingisfree.glyph.toy
+package io.github.hassanm0301.nothingisfree.glyph.addon
 
 import kotlin.math.PI
 import kotlin.math.cos

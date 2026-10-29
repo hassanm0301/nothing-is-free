@@ -4,6 +4,8 @@ import android.os.PowerManager
 import android.text.format.DateFormat
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -32,7 +34,7 @@ class ClockToyService : GlyphToyService() {
         )
         toy = clockToy
         val pulses = RecentNotifications.lastAlertAt
-        val window = ClockToyPreferences.pulseWindowSeconds
+        val window = AddonPreferences.pulseWindowSeconds
         return listOf(
             scope.launch { clockToy.run(pulses, window) },
             scope.launch {

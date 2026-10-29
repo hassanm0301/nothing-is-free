@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
 import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
-import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
@@ -39,7 +39,7 @@ fun GlyphScreen(viewModel: AppViewModel, insets: PaddingValues) {
             PulseClockCard(
                 lastAlertAt = lastAlertAt,
                 pulseWindowSeconds = pulseWindowSeconds,
-                pulseWindowChoices = ClockToyPreferences.pulseWindowChoices,
+                pulseWindowChoices = AddonPreferences.pulseWindowChoices,
                 onPulseWindowChange = viewModel::setPulseWindowSeconds,
                 onTestPulse = viewModel::testPulse,
             )

@@ -1,6 +1,8 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
+import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
@@ -37,7 +39,7 @@ class ClockToy(
             val now = clock.millis()
             val elapsed = PulseWave.elapsed(alertAt, windowMs, now)
             val ring = elapsed?.let(PulseWave::level) ?: 0
-            show(face.render(LocalTime.now(clock), is24Hour(), ring))
+            show(face.frame(LocalTime.now(clock), is24Hour(), ring))
             val wait = if (elapsed != null) FRAME_MS else MINUTE_MS - now % MINUTE_MS
             withTimeoutOrNull(wait) { redraw.receive() }
         }
