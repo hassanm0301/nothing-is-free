@@ -2,5 +2,7 @@
     <string name="app_name">Nothing is Free</string>
     <string name="clock_toy_name">Pulse clock</string>
     <string name="clock_toy_summary">A digital clock whose ring breathes after a notification</string>
+    <string name="binary_clock_name">Binary clock</string>
+    <string name="binary_clock_summary">Hours and minutes in binary-coded decimal</string>
     <string name="notification_listener_label">Pulse clock notifications</string>
 </resources>
