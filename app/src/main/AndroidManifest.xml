@@ -6,6 +6,9 @@
     <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
     <!-- Keeps the clock toy's notification pulse animating while the screen is off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Self-update: fetch the latest GitHub release and install its APK. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".NothingIsFreeApp"
@@ -61,6 +64,11 @@
                 android:name="com.nothing.glyph.toy.aod_support"
                 android:value="1" />
         </service>
+
+        <!-- PackageInstaller status for self-updates; only our own PendingIntent targets it. -->
+        <receiver
+            android:name=".core.update.InstallResultReceiver"
+            android:exported="false" />
 
         <!-- Widget receivers (Glance) will be registered here. -->
     </application>

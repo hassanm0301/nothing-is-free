@@ -1,6 +1,25 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+/**
+ * Release signing, from `keystore.properties` at the repo root (local, gitignored) or the
+ * NIF_KEYSTORE_* environment variables (CI). Every release must use the same key, or installed
+ * copies refuse to update in place. See README › Releases.
+ */
+val releaseSigning: Map<String, String>? = run {
+    val file = rootProject.file("keystore.properties")
+    val props = Properties().apply { if (file.exists()) file.inputStream().use(::load) }
+    fun value(key: String, env: String) = props.getProperty(key) ?: providers.environmentVariable(env).orNull
+    mapOf(
+        "storeFile" to value("storeFile", "NIF_KEYSTORE_FILE"),
+        "storePassword" to value("storePassword", "NIF_KEYSTORE_PASSWORD"),
+        "keyAlias" to value("keyAlias", "NIF_KEY_ALIAS"),
+        "keyPassword" to value("keyPassword", "NIF_KEY_PASSWORD"),
+    ).takeIf { m -> m.values.all { !it.isNullOrBlank() } }?.mapValues { it.value!! }
 }
 
 android {
@@ -17,8 +36,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseSigning != null) {
+            create("release") {
+                storeFile = file(releaseSigning.getValue("storeFile"))
+                storePassword = releaseSigning.getValue("storePassword")
+                keyAlias = releaseSigning.getValue("keyAlias")
+                keyPassword = releaseSigning.getValue("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Without a release key the APK is left unsigned rather than signed with a throwaway one.
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

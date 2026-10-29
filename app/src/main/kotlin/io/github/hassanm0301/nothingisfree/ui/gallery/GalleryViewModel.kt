@@ -2,7 +2,10 @@ package io.github.hassanm0301.nothingisfree.ui.gallery
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
+import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
+import io.github.hassanm0301.nothingisfree.core.update.Release
 import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
@@ -36,4 +39,15 @@ class GalleryViewModel : ViewModel() {
 
     /** Pretend a notification just arrived, to try the pulse on the toy and in the preview. */
     fun testPulse() = RecentNotifications.record(System.currentTimeMillis())
+
+    /** Self-update from GitHub releases; checked once each time the screen is created. */
+    val update: StateFlow<AppUpdater.State> = AppUpdater.state
+
+    init {
+        checkForUpdate()
+    }
+
+    fun checkForUpdate() = AppUpdater.check(NothingIsFreeApp.instance)
+
+    fun installUpdate(release: Release) = AppUpdater.install(NothingIsFreeApp.instance, release)
 }

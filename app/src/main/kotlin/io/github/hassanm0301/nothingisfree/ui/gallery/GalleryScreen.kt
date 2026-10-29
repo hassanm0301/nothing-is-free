@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
+import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
 import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
 import io.github.hassanm0301.nothingisfree.ui.components.ButtonVariant
@@ -69,6 +70,7 @@ import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingWhite
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
+import io.github.hassanm0301.nothingisfree.ui.update.UpdateCard
 import java.time.format.DateTimeFormatter
 
 private val DateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE dd MMM")
@@ -79,6 +81,7 @@ fun GalleryScreen(viewModel: GalleryViewModel = viewModel()) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
     val pulseWindowSeconds by viewModel.pulseWindowSeconds.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "dev"
@@ -95,6 +98,7 @@ fun GalleryScreen(viewModel: GalleryViewModel = viewModel()) {
             ),
         ) {
             header(versionName)
+            if (update.isPending) updateSection(update, versionName, viewModel)
             clockCard(now)
             glyphToySection(lastAlertAt, pulseWindowSeconds, viewModel::setPulseWindowSeconds, viewModel::testPulse)
             themeSection(themeMode, viewModel::setThemeMode)
@@ -105,6 +109,7 @@ fun GalleryScreen(viewModel: GalleryViewModel = viewModel()) {
             widgetCards()
             listSection()
             deviceSection()
+            if (!update.isPending) updateSection(update, versionName, viewModel)
             footer()
         }
     }
@@ -160,6 +165,22 @@ private fun LazyListScope.glyphToySection(
         onTestPulse = onTestPulse,
     )
 }
+
+/** Sits under the header while an update waits, otherwise down by the device info. */
+private fun LazyListScope.updateSection(state: AppUpdater.State, versionName: String, viewModel: GalleryViewModel) =
+    item(key = "update") {
+        SectionHeader("Updates")
+        UpdateCard(
+            state = state,
+            currentVersion = versionName,
+            onCheck = viewModel::checkForUpdate,
+            onInstall = viewModel::installUpdate,
+        )
+    }
+
+private val AppUpdater.State.isPending: Boolean
+    get() = this is AppUpdater.State.Available || this is AppUpdater.State.Downloading ||
+        this is AppUpdater.State.Installing || (this is AppUpdater.State.Failed && release != null)
 
 /** Muted tone for text inside an inverted card. */
 @Composable
