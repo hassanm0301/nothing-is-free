@@ -2,10 +2,12 @@
 
 An Android app in the style of Nothing OS. Jetpack Compose, Kotlin, min Android 14.
 Three tabs:
-- **Glyph** – two always-on Glyph Toys for the Phone (4a) Pro, each with a live preview and its
-  options: **Pulse clock**, a digital clock whose ring breathes after a notification, and
-  **Binary clock**, HH:MM in BCD with dot or 2x2 square bits and adjustable active/inactive
-  brightness (see `docs/GLYPH.md`).
+- **Glyph** – always-on Glyph Toys for the Phone (4a) Pro, in two lists (see `docs/GLYPH.md`):
+  - *Toys*: **Digital clock** and **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
+    adjustable active/inactive brightness). Each opens a settings page with a live matrix and a
+    **Preview** sheet: scrub the time of day and simulate a notification.
+  - *Addons*: drawn on top of any toy, switched on per toy. **Notification pulse**: the outer
+    ring breathes for a while after a notification.
 - **Widgets** – previews of the home-screen widgets to come.
 - **Settings** – updates, theme, device info and about.
 
@@ -63,8 +65,9 @@ app/src/main/kotlin/io/github/hassanm0301/nothingisfree/
   core/notifications/  notification listener feeding the Glyph pulse
   core/update/     self-update from GitHub releases (check, download, PackageInstaller)
   glyph/           GlyphCapability + GlyphController (in-app frames, still a no-op)
-  glyph/toy/       the Glyph Toys (Pulse clock, Binary clock) on a shared GlyphToyService
-  ui/glyph/        Glyph tab: toy cards with live previews and settings
+  glyph/toy/       the Glyph Toys (Digital clock, Binary clock) on a shared GlyphToyService
+  glyph/addon/     addons drawn on any toy (Notification pulse) and their settings
+  ui/glyph/        Glyph tab: toy and addon lists, their settings pages, the preview sheet
   ui/widgets/      Widgets tab
   ui/settings/     Settings tab
   ui/update/       the update card

@@ -22,12 +22,7 @@ class BinaryClockFace(val size: Int) {
         // minutes tens 0..5, minutes units 0..9.
         val bitsPerDigit = intArrayOf(if (is24Hour) 2 else 1, 4, 3, 4)
 
-        val bit = scale * if (settings.style == BitStyle.SQUARE) 2 else 1
-        val gap = if (settings.style == BitStyle.DOT && settings.dotGap) scale else 0
-        val pitch = bit + gap
-        val block = ROWS * bit + (ROWS - 1) * gap
-        // Rounds up, so an even-sized block sits half a dot right and down of centre.
-        val origin = (size - block + 1) / 2
+        val (bit, pitch, origin) = layout(settings)
 
         return DotMatrix(size, size).apply {
             digits.forEachIndexed { col, value ->
@@ -46,6 +41,29 @@ class BinaryClockFace(val size: Int) {
                 }
             }
         }
+    }
+
+    /** Whether ([x], [y]) is inside the bit grid for [settings]. */
+    fun occupies(x: Int, y: Int, settings: BinaryClockSettings): Boolean {
+        val (bit, pitch, origin) = layout(settings)
+        val end = origin + (ROWS - 1) * pitch + bit
+        return x in origin until end && y in origin until end
+    }
+
+    /** This face with fixed [settings], as a [ToyFace]. */
+    fun with(settings: BinaryClockSettings): ToyFace = object : ToyFace {
+        override val size: Int get() = this@BinaryClockFace.size
+        override fun render(time: LocalTime, is24Hour: Boolean) = render(time, is24Hour, settings)
+        override fun occupies(x: Int, y: Int) = occupies(x, y, settings)
+    }
+
+    /** Bit size, bit pitch and grid origin (same on both axes). */
+    private fun layout(settings: BinaryClockSettings): Triple<Int, Int, Int> {
+        val bit = scale * if (settings.style == BitStyle.SQUARE) 2 else 1
+        val gap = if (settings.style == BitStyle.DOT && settings.dotGap) scale else 0
+        val block = ROWS * bit + (ROWS - 1) * gap
+        // Rounds up, so an even-sized block sits half a dot right and down of centre.
+        return Triple(bit, bit + gap, (size - block + 1) / 2)
     }
 
     private companion object {

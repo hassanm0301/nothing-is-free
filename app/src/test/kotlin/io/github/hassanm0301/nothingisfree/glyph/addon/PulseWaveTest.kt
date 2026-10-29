@@ -1,6 +1,6 @@
-package io.github.hassanm0301.nothingisfree.glyph.toy
+package io.github.hassanm0301.nothingisfree.glyph.addon
 
-import io.github.hassanm0301.nothingisfree.glyph.toy.PulseWave.PERIOD_MS
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave.PERIOD_MS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.update
 
 /**
  * When the last alerting notification arrived. Fed by [GlyphNotificationListener], read by the
- * Glyph clock toy. Process-scoped: both services live in the app process and keep it alive.
+ * Glyph Toys for the notification pulse addon. Process-scoped: the listener and the toys live in
+ * the app process and keep it alive.
  */
 object RecentNotifications {
     private val _lastAlertAt = MutableStateFlow<Long?>(null)
@@ -16,8 +17,19 @@ object RecentNotifications {
     /** Wall-clock millis of the newest alerting notification, or null if none since start. */
     val lastAlertAt: StateFlow<Long?> = _lastAlertAt.asStateFlow()
 
-    fun record(atMillis: Long) {
-        _lastAlertAt.update { previous -> maxOf(previous ?: atMillis, atMillis) }
+    /**
+     * Stamp an alert at [atMillis], keeping the newest. Times ahead of [now] are clamped, and a
+     * stored time that is now in the future (the clock was set back) gives way to the new one;
+     * otherwise it would hold off every pulse until the clock caught up.
+     */
+    fun record(atMillis: Long, now: Long = System.currentTimeMillis()) {
+        val at = minOf(atMillis, now)
+        _lastAlertAt.update { previous -> if (previous == null || previous > now || at > previous) at else previous }
+    }
+
+    /** Forget the last alert. For tests, which share this process-wide state. */
+    internal fun clear() {
+        _lastAlertAt.value = null
     }
 
     /**

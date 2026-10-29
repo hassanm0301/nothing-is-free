@@ -6,9 +6,11 @@ import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
-import io.github.hassanm0301.nothingisfree.glyph.toy.ClockToyPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 import kotlinx.coroutines.delay
@@ -33,15 +35,20 @@ class AppViewModel : ViewModel() {
 
     fun setThemeMode(mode: ThemeMode) = ThemePreferences.set(mode)
 
-    /** Last alerting notification, as seen by the Pulse clock toy. */
+    /** Last alerting notification, as seen by the notification pulse addon. */
     val lastAlertAt: StateFlow<Long?> = RecentNotifications.lastAlertAt
 
-    val pulseWindowSeconds: StateFlow<Int> = ClockToyPreferences.pulseWindowSeconds
+    /** For each addon, the toys it is on for. */
+    val addons: StateFlow<Map<AddonId, Set<ToyId>>> = AddonPreferences.enabled
 
-    fun setPulseWindowSeconds(seconds: Int) = ClockToyPreferences.setPulseWindowSeconds(seconds)
+    fun setAddon(addon: AddonId, toy: ToyId, on: Boolean) = AddonPreferences.setEnabled(addon, toy, on)
 
-    /** Pretend a notification just arrived, to try the pulse on the toy and in the preview. */
-    fun testPulse() = RecentNotifications.record(System.currentTimeMillis())
+    val pulseWindowSeconds: StateFlow<Int> = AddonPreferences.pulseWindowSeconds
+
+    fun setPulseWindowSeconds(seconds: Int) = AddonPreferences.setPulseWindowSeconds(seconds)
+
+    /** Pretend a notification just arrived, so the pulse runs on the phone's matrix. */
+    fun testPulseOnPhone() = RecentNotifications.record(System.currentTimeMillis())
 
     /** Binary clock toy options; the toy redraws as soon as they change. */
     val binaryClock: StateFlow<BinaryClockSettings> = BinaryClockPreferences.settings

@@ -32,30 +32,6 @@ class ClockFaceTest {
     }
 
     @Test
-    fun `ring hugs the circle edge without touching the digits`() {
-        val digitCells = digits("88", "88")
-        assertEquals(32, face.ring.size)
-        face.ring.forEach { (x, y) ->
-            assertTrue("($x,$y) is off the matrix", face.inCircle(x, y))
-            assertEquals("($x,$y) overlaps a digit", 0, digitCells[x, y])
-        }
-        assertTrue(6 to 0 in face.ring)
-        assertTrue(0 to 6 in face.ring)
-        assertFalse(0 to 0 in face.ring)
-    }
-
-    @Test
-    fun `ring takes the given level and stays dark at zero`() {
-        val time = LocalTime.of(12, 34)
-        val lit = face.render(time, true, ringLevel = 128)
-        val dark = face.render(time, true, ringLevel = 0)
-        face.ring.forEach { (x, y) ->
-            assertEquals(128, lit[x, y])
-            assertEquals(0, dark[x, y])
-        }
-    }
-
-    @Test
     fun `corners of the round matrix are not LEDs`() {
         assertFalse(face.inCircle(0, 0))
         assertFalse(face.inCircle(12, 12))
@@ -67,8 +43,7 @@ class ClockFaceTest {
     @Test
     fun `25x25 uses the big font and still fits`() {
         val big = ClockFace(25)
-        val frame = big.render(LocalTime.of(23, 59), true, ringLevel = 255)
+        val frame = big.render(LocalTime.of(23, 59), true)
         frame.forEach { x, y, v -> if (v > 0) assertTrue("($x,$y) is off the matrix", big.inCircle(x, y)) }
-        assertTrue(big.ring.isNotEmpty())
     }
 }
