@@ -1,31 +1,19 @@
 package io.github.hassanm0301.nothingisfree.ui.glyph
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrixCanvas
-import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BitStyle
 import io.github.hassanm0301.nothingisfree.ui.components.DotDivider
@@ -37,51 +25,15 @@ import io.github.hassanm0301.nothingisfree.ui.components.NothingSlider
 import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
-import kotlinx.coroutines.delay
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 
-/**
- * Settings and a live preview for the "Binary clock" Glyph Toy. The preview draws the exact frame
- * the toy sends to a 13x13 matrix, so style and brightness changes show here and on the phone at
- * the same time.
- */
+/** The Binary clock toy's options. Changes reach the phone's matrix straight away. */
 @Composable
-fun BinaryClockCard(
+fun BinaryClockOptions(
     settings: BinaryClockSettings,
     onChange: ((BinaryClockSettings) -> BinaryClockSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val face = remember { BinaryClockFace(13) }
-    val is24Hour = DateFormat.is24HourFormat(context)
-    // Ticks each second rather than each minute so it catches up straight after sleep or a time change.
-    val time by produceState(LocalTime.now().withNano(0)) {
-        while (true) {
-            value = LocalTime.now().withNano(0)
-            delay(1_000L - System.currentTimeMillis() % 1_000L)
-        }
-    }
-    val frame = remember(time.hour, time.minute, is24Hour, settings) { face.render(time, is24Hour, settings) }
-    val label = time.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "hh:mm"))
-
     NothingCard(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            MonoLabel("Binary clock · BCD", Modifier.weight(1f))
-            MonoLabel(label, color = MaterialTheme.colorScheme.onBackground)
-        }
-        Spacer(Modifier.height(Spacing.lg))
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            DotMatrixCanvas(frame, Modifier.width(168.dp), isDot = face::inCircle)
-        }
-        Spacer(Modifier.height(Spacing.sm))
-        MonoLabel(
-            "Columns H H M M · rows 8 4 2 1",
-            Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.labelSmall,
-        )
-        Spacer(Modifier.height(Spacing.lg))
-
         MonoLabel("Bits")
         Spacer(Modifier.height(Spacing.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -121,13 +73,6 @@ fun BinaryClockCard(
             settings.inactiveBrightness,
             onValueChange = { v -> onChange { it.copy(inactiveBrightness = v) } },
             onStep = { d -> onChange { it.copy(inactiveBrightness = (it.inactiveBrightness + d).coerceIn(0, 255)) } },
-        )
-        Spacer(Modifier.height(Spacing.lg))
-
-        Text(
-            "Pick it in Settings › Glyph Interface › Flip to Glyph › Always-on Glyph Toy › Binary clock.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = NothingTheme.colors.muted,
         )
     }
 }
