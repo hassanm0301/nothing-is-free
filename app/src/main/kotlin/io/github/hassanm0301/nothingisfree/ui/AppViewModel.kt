@@ -6,6 +6,7 @@ import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
+import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
@@ -71,4 +72,13 @@ class AppViewModel : ViewModel() {
     fun checkForUpdate() = AppUpdater.check(NothingIsFreeApp.instance)
 
     fun installUpdate(release: Release) = AppUpdater.install(NothingIsFreeApp.instance, release)
+
+    /** Whether updates include GitHub pre-releases. */
+    val betaUpdates: StateFlow<Boolean> = UpdatePreferences.beta
+
+    /** Switch the update channel and look again on the new one. */
+    fun setBetaUpdates(on: Boolean) {
+        UpdatePreferences.setBeta(on)
+        checkForUpdate()
+    }
 }

@@ -7,7 +7,9 @@ import android.provider.Settings
 import androidx.core.net.toUri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,15 +43,26 @@ object AppUpdater {
     private val busy: Boolean
         get() = _state.value.let { it is State.Checking || it is State.Downloading || it is State.Installing }
 
+    private var checkJob: Job? = null
+
     fun currentVersion(context: Context): String =
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
 
+    /**
+     * Looks for an update on the channel set in [UpdatePreferences]: releases only, or with beta
+     * on, pre-releases too. A check already running is started over, so a channel switched
+     * mid-check doesn't answer for the old one; a download or install is left alone.
+     */
     fun check(context: Context) {
-        if (busy) return
+        if (_state.value.let { it is State.Downloading || it is State.Installing }) return
         val current = currentVersion(context)
+        val beta = UpdatePreferences.beta.value
+        checkJob?.cancel()
         _state.value = State.Checking
-        scope.launch {
-            _state.value = runCatching { GitHubReleases.latest() }.fold(
+        checkJob = scope.launch {
+            val result = runCatching { GitHubReleases.latest(includePrereleases = beta) }
+            ensureActive()
+            _state.value = result.fold(
                 onSuccess = { release ->
                     when {
                         release == null || !Versions.isNewer(release.version, current) -> State.UpToDate

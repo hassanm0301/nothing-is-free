@@ -40,6 +40,13 @@ cannot update a release install; uninstall first.
 `.github/workflows/release.yml` checks the tag matches `versionName`, runs the tests, builds a
 signed `assembleRelease` and publishes it as `nothing-is-free-v0.2.0.apk` on the release.
 
+### Beta releases
+For a preview, use a pre-release `versionName` such as `0.6.0-beta.1` (still bump
+`versionCode`) and tag `v0.6.0-beta.1`. Any tag with a `-` is published as a GitHub pre-release.
+The app only offers pre-releases with **Settings › Updates › Beta updates** on; then it offers
+the highest version among recent releases, so `0.6.0-beta.2` follows `0.6.0-beta.1` and `0.6.0`
+follows both. Turning beta off keeps the installed beta until a newer full release is out.
+
 ### Signing key
 The release key is `~/.android/nothing-is-free-release.jks` (alias `nothing-is-free`). Its
 password is in `keystore.properties` at the repo root, which is gitignored and read by Gradle
