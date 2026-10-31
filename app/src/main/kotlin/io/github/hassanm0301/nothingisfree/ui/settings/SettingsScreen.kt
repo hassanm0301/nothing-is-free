@@ -34,6 +34,7 @@ import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
 import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
+import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.screenHeader
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
@@ -46,6 +47,7 @@ import io.github.hassanm0301.nothingisfree.ui.update.UpdateCard
 fun SettingsScreen(viewModel: AppViewModel, insets: PaddingValues) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
+    val beta by viewModel.betaUpdates.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val versionName = remember { AppUpdater.currentVersion(context) }
 
@@ -58,6 +60,21 @@ fun SettingsScreen(viewModel: AppViewModel, insets: PaddingValues) {
                 currentVersion = versionName,
                 onCheck = viewModel::checkForUpdate,
                 onInstall = viewModel::installUpdate,
+            )
+            NothingListRow(
+                "Beta updates",
+                subtitle = "Include pre-releases from GitHub",
+                trailing = { NothingSwitch(beta, viewModel::setBetaUpdates) },
+            )
+            Text(
+                if (beta) {
+                    "Pre-releases try out new things first and may be rough. Turning this off keeps " +
+                        "the installed beta until a newer release comes out."
+                } else {
+                    "Only full releases are offered."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = NothingTheme.colors.muted,
             )
         }
         item {

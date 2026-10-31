@@ -1,6 +1,7 @@
 package io.github.hassanm0301.nothingisfree
 
 import android.app.Application
+import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.GlyphController
 import io.github.hassanm0301.nothingisfree.glyph.GlyphModule
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
@@ -16,6 +17,7 @@ class NothingIsFreeApp : Application() {
         instance = this
         AddonPreferences.init(this)
         BinaryClockPreferences.init(this)
+        UpdatePreferences.init(this)
     }
 
     companion object {

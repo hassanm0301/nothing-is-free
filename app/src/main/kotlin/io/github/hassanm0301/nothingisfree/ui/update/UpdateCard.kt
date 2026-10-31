@@ -61,7 +61,7 @@ fun UpdateCard(
             if (state is State.Available) {
                 StatusDot()
                 Spacer(Modifier.width(Spacing.sm))
-                MonoLabel("New", color = NothingTheme.colors.accent)
+                MonoLabel(if (state.release.prerelease) "New · Beta" else "New", color = NothingTheme.colors.accent)
             }
         }
         Spacer(Modifier.height(Spacing.md))
