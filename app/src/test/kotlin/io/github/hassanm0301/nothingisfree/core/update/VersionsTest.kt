@@ -36,4 +36,30 @@ class VersionsTest {
         assertEquals(apk, Versions.pickApk(listOf(notes, apk)))
         assertNull(Versions.pickApk(listOf(notes)))
     }
+
+    @Test
+    fun `a pre-release comes before its release and after the one before`() {
+        assertTrue(Versions.isNewer("0.5.0", "0.5.0-beta.1"))
+        assertTrue(Versions.isNewer("0.5.0-beta.1", "0.4.0"))
+        assertFalse(Versions.isNewer("0.5.0-beta.1", "0.5.0"))
+        assertEquals(0, Versions.compare("v0.5.0-beta.1", "0.5.0-beta.1"))
+        assertEquals(0, Versions.compare("0.5.0-beta.1-debug", "0.5.0-beta.1"))
+    }
+
+    @Test
+    fun `pre-releases compare part by part, numbers numerically`() {
+        assertTrue(Versions.isNewer("0.5.0-beta.10", "0.5.0-beta.2"))
+        assertTrue(Versions.isNewer("0.5.0-rc.1", "0.5.0-beta.10"))
+        assertTrue(Versions.isNewer("0.5.0-beta.1", "0.5.0-beta"))
+        assertTrue(Versions.isNewer("0.5.0-beta", "0.5.0-1"))
+    }
+
+    @Test
+    fun `newest picks the highest version, not the latest published`() {
+        fun r(tag: String, pre: Boolean = false) = Release(tag, tag, "", "", null, prerelease = pre)
+        val releases = listOf(r("v0.6.0-beta.1", true), r("v0.5.1"), r("v0.6.0-beta.2", true), r("v0.5.0"))
+        assertEquals("v0.6.0-beta.2", Versions.newest(releases)?.tag)
+        assertEquals("v0.6.0", Versions.newest(releases + r("v0.6.0"))?.tag)
+        assertNull(Versions.newest(emptyList()))
+    }
 }

@@ -11,8 +11,9 @@ import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationManagerCompat
 
 /**
- * Watches posted notifications and stamps [RecentNotifications] with the alerting ones. Needs
- * notification access, granted by the user in system settings (see [accessSettingsIntent]).
+ * Watches posted notifications and stamps [RecentNotifications] with the alerting ones, and with
+ * which ones are still showing. Needs notification access, granted by the user in system settings
+ * (see [accessSettingsIntent]).
  */
 class GlyphNotificationListener : NotificationListenerService() {
 
@@ -21,14 +22,19 @@ class GlyphNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         showing.clear()
-        activeNotifications?.mapTo(showing) { it.key }
+        val active = activeNotifications.orEmpty()
+        active.mapTo(showing) { it.key }
+        val ranking = currentRanking
+        RecentNotifications.resetShowing(active.filter { counts(it, rankingOf(it, ranking)) }.map { it.key })
     }
 
-    override fun onListenerDisconnected() = showing.clear()
+    override fun onListenerDisconnected() {
+        showing.clear()
+        RecentNotifications.resetShowing(emptyList())
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
-        // Without a ranking, give the notification the benefit of the doubt.
-        val ranking = Ranking().takeIf { rankingMap.getRanking(sbn.key, it) }
+        val ranking = rankingOf(sbn, rankingMap)
         val alerting = RecentNotifications.isAlerting(
             ownPackage = sbn.packageName == packageName,
             ongoing = sbn.isOngoing,
@@ -38,12 +44,25 @@ class GlyphNotificationListener : NotificationListenerService() {
             alreadyShowing = sbn.key in showing,
         )
         showing += sbn.key
+        RecentNotifications.showing(sbn.key, counts(sbn, ranking))
         if (alerting) RecentNotifications.record(sbn.postTime)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         showing -= sbn.key
+        RecentNotifications.removed(sbn.key)
     }
+
+    /** Without a ranking, give the notification the benefit of the doubt. */
+    private fun rankingOf(sbn: StatusBarNotification, rankingMap: RankingMap?): Ranking? =
+        rankingMap?.let { map -> Ranking().takeIf { map.getRanking(sbn.key, it) } }
+
+    private fun counts(sbn: StatusBarNotification, ranking: Ranking?): Boolean = RecentNotifications.counts(
+        ownPackage = sbn.packageName == packageName,
+        ongoing = sbn.isOngoing,
+        importance = ranking?.importance ?: NotificationManager.IMPORTANCE_DEFAULT,
+        passesDnd = ranking?.matchesInterruptionFilter() ?: true,
+    )
 
     companion object {
         fun hasAccess(context: Context): Boolean =

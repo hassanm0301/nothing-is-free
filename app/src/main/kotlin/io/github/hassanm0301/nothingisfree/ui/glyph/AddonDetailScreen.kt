@@ -19,11 +19,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.notifications.GlyphNotificationListener
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
-import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
 import io.github.hassanm0301.nothingisfree.ui.components.ButtonVariant
 import io.github.hassanm0301.nothingisfree.ui.components.DotDivider
+import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
+import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
 import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
@@ -33,7 +34,7 @@ import io.github.hassanm0301.nothingisfree.ui.components.detailHeader
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 
-/** One addon's settings: which toys it runs on, then its own options. */
+/** One addon's settings. It is switched on per toy from each toy's page. */
 @Composable
 fun AddonDetailScreen(
     addon: AddonId,
@@ -47,18 +48,6 @@ fun AddonDetailScreen(
 
     NothingScreen(insets) {
         detailHeader(back, onBack, kicker = "Addon", title = addon.title, body = addon.summary)
-        item {
-            SectionHeader("Use on")
-            ToyId.entries.forEachIndexed { i, toy ->
-                if (i > 0) DotDivider()
-                NothingListRow(
-                    toy.title,
-                    trailing = {
-                        NothingSwitch(checked = toy in on, onCheckedChange = { viewModel.setAddon(addon, toy, it) })
-                    },
-                )
-            }
-        }
         when (addon) {
             AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, anyToy = on.isNotEmpty()) }
         }
@@ -68,29 +57,78 @@ fun AddonDetailScreen(
 @Composable
 private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) {
     val context = LocalContext.current
-    val windowSeconds by viewModel.pulseWindowSeconds.collectAsStateWithLifecycle()
+    val pulse by viewModel.pulse.collectAsStateWithLifecycle()
     var hasAccess by remember { mutableStateOf(GlyphNotificationListener.hasAccess(context)) }
     LifecycleResumeEffect(Unit) {
         hasAccess = GlyphNotificationListener.hasAccess(context)
         onPauseOrDispose { }
     }
 
-    SectionHeader("Pulse for")
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        AddonPreferences.pulseWindowChoices.forEach { seconds ->
-            NothingChip(
-                text = if (seconds < 60) "${seconds}s" else "${seconds / 60}m",
-                selected = seconds == windowSeconds,
-                onClick = { viewModel.setPulseWindowSeconds(seconds) },
-            )
+    SectionHeader("Pulse")
+    NothingCard {
+        MonoLabel("Time to max brightness")
+        Spacer(Modifier.height(Spacing.sm))
+        ChoiceChips(AddonPreferences.riseChoices, pulse.riseMs, ::formatMs) { ms ->
+            viewModel.updatePulse { it.copy(riseMs = ms) }
+        }
+        Spacer(Modifier.height(Spacing.lg))
+
+        BrightnessControl(
+            "Max brightness",
+            pulse.maxBrightness,
+            onValueChange = { v -> viewModel.updatePulse { it.copy(maxBrightness = v) } },
+            onStep = { d -> viewModel.updatePulse { it.copy(maxBrightness = (it.maxBrightness + d).coerceIn(1, 255)) } },
+            range = 1..255,
+        )
+        Spacer(Modifier.height(Spacing.lg))
+
+        MonoLabel("Number of pulses")
+        Spacer(Modifier.height(Spacing.sm))
+        ChoiceChips(AddonPreferences.countChoices, pulse.count, { "$it" }) { n ->
+            viewModel.updatePulse { it.copy(count = n) }
         }
     }
     Spacer(Modifier.height(Spacing.sm))
+    val total = formatMs(pulse.durationMs)
     Text(
-        "How long the ring breathes after a notification, rounded up to whole breaths.",
+        "Each pulse fades up to max brightness and back down in the same time. " +
+            if (pulse.count == 1) "One pulse takes $total." else "${pulse.count} pulses take $total.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Battery saver")
+    NothingListRow(
+        "Check once a minute",
+        subtitle = "With the clock update",
+        trailing = {
+            NothingSwitch(pulse.batterySaver, { on -> viewModel.updatePulse { it.copy(batterySaver = on) } })
+        },
+    )
+    DotDivider()
+    NothingListRow(
+        "Pulse for old ones too",
+        subtitle = "Every minute while any are in the shade",
+        trailing = {
+            NothingSwitch(
+                pulse.repeatWhileShowing,
+                { on -> viewModel.updatePulse { it.copy(repeatWhileShowing = on) } },
+                enabled = pulse.batterySaver,
+            )
+        },
+    )
+    Text(
+        if (pulse.batterySaver) {
+            "On: notifications are only looked at when the clock updates each minute, so the pulse " +
+                "runs with that update instead of keeping the phone up on its own. It pulses " +
+                if (pulse.repeatWhileShowing) {
+                    "every minute while a notification is still in the shade."
+                } else {
+                    "if one arrived during the last minute."
+                }
+        } else {
+            "Off: the ring pulses the moment a notification arrives."
+        },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
     )
@@ -116,9 +154,10 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
     SectionHeader("Test on phone")
     Text(
         if (anyToy) {
-            "Sends a pretend notification, so the ring pulses on the phone's matrix if one of these toys is showing."
+            "Sends a pretend notification, so the ring pulses on the phone's matrix if a toy it is on " +
+                "for is showing" + if (pulse.batterySaver) ", from the next minute." else "."
         } else {
-            "Switch the addon on for a toy first."
+            "Switch the addon on from a toy's page first."
         },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
@@ -130,4 +169,28 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
         variant = ButtonVariant.Secondary,
         enabled = anyToy,
     )
+}
+
+/** One chip per choice in a wrapping row, the [selected] one filled. */
+@Composable
+private fun <T> ChoiceChips(choices: List<T>, selected: T, label: (T) -> String, onPick: (T) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        choices.forEach { choice ->
+            NothingChip(text = label(choice), selected = choice == selected, onClick = { onPick(choice) })
+        }
+    }
+}
+
+/** A duration for the UI: "1.5 s", "30 s", "1 min 30 s". */
+private fun formatMs(ms: Long): String {
+    val tenths = (ms + 50) / 100
+    val seconds = tenths / 10
+    return when {
+        seconds >= 60 -> "${seconds / 60} min" + if (seconds % 60 != 0L) " ${seconds % 60} s" else ""
+        tenths % 10 == 0L -> "$seconds s"
+        else -> "$seconds.${tenths % 10} s"
+    }
 }

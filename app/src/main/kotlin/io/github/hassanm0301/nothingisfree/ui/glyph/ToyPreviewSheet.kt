@@ -51,7 +51,7 @@ private const val MINUTES_PER_DAY = 24 * 60
 fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
-    val pulseWindowSeconds by viewModel.pulseWindowSeconds.collectAsStateWithLifecycle()
+    val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
     val now by rememberNow()
 
     // null follows the clock; otherwise the minute of the day picked on the slider.
@@ -61,7 +61,8 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
     val time = pickedMinute?.let { LocalTime.of(it / 60, it % 60) } ?: now
     val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
     val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
-    val pulse by rememberPulse(simulatedAt, pulseWindowSeconds, pulseOn)
+    // Starts at once even with battery saver, which would only hold it for the next minute.
+    val pulse by rememberPulse(simulatedAt, pulseSettings.copy(batterySaver = false), pulseOn)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -114,8 +115,9 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
                 )
                 Spacer(Modifier.height(Spacing.sm))
                 Text(
-                    "Runs the ${AddonId.NOTIFICATION_PULSE.title.lowercase()} here for its set window. " +
-                        "Nothing is sent to the phone.",
+                    "Runs the ${AddonId.NOTIFICATION_PULSE.title.lowercase()} here with its settings. " +
+                        "Nothing is sent to the phone." +
+                        if (pulseSettings.batterySaver) " There, battery saver holds it until the next minute." else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = NothingTheme.colors.muted,
                 )

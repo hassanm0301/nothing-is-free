@@ -2,7 +2,7 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
-import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -47,13 +47,26 @@ class ToyLoopTest {
 
     private fun DotMatrix.cells() = toFrame().toList()
 
-    /** Runs [loop] on the digital clock, pulse off and no alert, unless told otherwise. */
+    /** Runs [loop] on the digital clock: pulse off, default settings and no alert, unless told otherwise. */
     private fun CoroutineScope.runLoop(
         faces: Flow<ToyFace> = flowOf(digital),
         pulseOn: Flow<Boolean> = MutableStateFlow(false),
-        alertAt: Flow<Long?> = MutableStateFlow(null),
-        windowSeconds: Flow<Int> = MutableStateFlow(30),
-    ) = launch { loop.run(faces, pulseOn, alertAt, windowSeconds) }
+        alertAt: MutableStateFlow<Long?> = MutableStateFlow(null),
+        pulse: Flow<PulseSettings> = MutableStateFlow(PulseSettings()),
+        showing: MutableStateFlow<Boolean> = MutableStateFlow(false),
+        loop: ToyLoop = this@ToyLoopTest.loop,
+    ) = launch { loop.run(faces, pulseOn, pulse, alertAt, showing) }
+
+    /** Ring brightness on the next frame. */
+    private suspend fun nextRing() = nextFrame()[top.first, top.second]
+
+    /** Skips frames until the ring reaches [level], e.g. past frames painted before the clock moved. */
+    private suspend fun awaitRing(level: Int) = withTimeout(1_000) {
+        while (frames.receive()[top.first, top.second] != level) {}
+    }
+
+    /** The next minute after the test clock's start, 21:48:00. */
+    private val nextMinute = clock.now / 60_000 * 60_000 + 60_000
 
     @Test
     fun `paints the first frame at once`() = runBlocking {
@@ -104,8 +117,8 @@ class ToyLoopTest {
     @Test
     fun `pulses only while the addon is on for the toy`() = runBlocking {
         val pulseOn = MutableStateFlow(false)
-        // Half a period in is the peak of the breath.
-        val alertAt = MutableStateFlow<Long?>(clock.now - PulseWave.PERIOD_MS / 2)
+        // One rise time in is the peak of the breath.
+        val alertAt = MutableStateFlow<Long?>(clock.now - RISE_MS)
         val job = runLoop(pulseOn = pulseOn, alertAt = alertAt)
 
         val plain = digital.frame(time, true).cells()
@@ -115,7 +128,7 @@ class ToyLoopTest {
         pulseOn.value = true
         assertEquals(digital.frame(time, true, pulseLevel = 255).cells(), nextFrame().cells())
         // Still pulsing, so another frame follows within a frame interval.
-        assertEquals(255, nextFrame()[top.first, top.second])
+        assertEquals(255, nextRing())
 
         // Off mid-pulse: back to the plain frame, and the animation stops.
         pulseOn.value = false
@@ -132,23 +145,20 @@ class ToyLoopTest {
     }
 
     @Test
-    fun `the pulse ends after the window rounded up to whole breaths`() = runBlocking {
+    fun `the pulse ends after its number of breaths`() = runBlocking {
         val alertAt = clock.now
-        val duration = PulseWave.duration(25 * 1_000L)
+        val settings = PulseSettings(count = 3)
+        val duration = settings.durationMs
         val job = runLoop(
             pulseOn = MutableStateFlow(true),
             alertAt = MutableStateFlow(alertAt),
-            windowSeconds = MutableStateFlow(25),
+            pulse = MutableStateFlow(settings),
         )
 
-        // A 25 s window runs to 26 s; the last breath peaks half a period before that.
-        clock.now = alertAt + duration - PulseWave.PERIOD_MS / 2
-        withTimeout(1_000) {
-            do {
-                val frame = frames.receive()
-            } while (frame[top.first, top.second] != 255)
-        }
-        assertEquals(255, nextFrame()[top.first, top.second])
+        // Three 2 s breaths run to 6 s; the last one peaks a rise time before that.
+        clock.now = alertAt + duration - settings.riseMs
+        awaitRing(255)
+        assertEquals(255, nextRing())
 
         // Frames already queued were painted before the end; the next one is plain, then nothing.
         clock.now = alertAt + duration
@@ -162,7 +172,7 @@ class ToyLoopTest {
     @Test
     fun `binary clock keeps its bits intact under the pulse`() = runBlocking {
         val face = BinaryClockFace(13).with(BinaryClockSettings(style = BitStyle.SQUARE, showUnusedBits = true))
-        val alertAt = MutableStateFlow<Long?>(clock.now - PulseWave.PERIOD_MS / 2)
+        val alertAt = MutableStateFlow<Long?>(clock.now - RISE_MS)
         val job = runLoop(faces = flowOf(face), pulseOn = MutableStateFlow(true), alertAt = alertAt)
 
         val frame = nextFrame()
@@ -183,19 +193,134 @@ class ToyLoopTest {
         val face = object : ToyFace by digital {
             override fun occupies(x: Int, y: Int) = digital.occupies(x, y).also { lookups++ }
         }
-        val alertAt = MutableStateFlow<Long?>(clock.now - PulseWave.PERIOD_MS / 2)
+        val alertAt = MutableStateFlow<Long?>(clock.now - RISE_MS)
         val job = runLoop(faces = flowOf(face), pulseOn = MutableStateFlow(true), alertAt = alertAt)
 
         nextFrame()
         val afterFirst = lookups
         assertTrue(afterFirst > 0)
-        repeat(3) { assertEquals(255, nextFrame()[top.first, top.second]) }
+        repeat(3) { assertEquals(255, nextRing()) }
         assertEquals(afterFirst, lookups)
+        job.cancel()
+    }
+
+    @Test
+    fun `rise time and max brightness shape the breath`() = runBlocking {
+        val settings = PulseSettings(riseMs = 2_000, maxBrightness = 100)
+        val alertAt = clock.now
+        val job = runLoop(
+            pulseOn = MutableStateFlow(true),
+            alertAt = MutableStateFlow(alertAt),
+            pulse = MutableStateFlow(settings),
+        )
+
+        assertEquals(0, nextRing())
+        clock.now = alertAt + 1_000
+        awaitRing(settings.level(1_000))
+        assertTrue(settings.level(1_000) in 1 until 100)
+        clock.now = alertAt + 2_000
+        awaitRing(100)
+        assertEquals(100, nextRing())
+        job.cancel()
+    }
+
+    @Test
+    fun `keeps the CPU awake for what is left of the pulse, and lets go when it is switched off`() = runBlocking {
+        val awake = Channel<Long?>(Channel.UNLIMITED)
+        val loop = ToyLoop(
+            show = { frames.trySend(it) },
+            is24Hour = { true },
+            clock = clock,
+            keepAwake = { awake.trySend(it) },
+        )
+        val pulseOn = MutableStateFlow(true)
+        val job = runLoop(pulseOn = pulseOn, alertAt = MutableStateFlow(clock.now - RISE_MS), loop = loop)
+
+        assertEquals(PulseSettings().durationMs - RISE_MS, withTimeout(1_000) { awake.receive() })
+        // Told once per pulse, not on every frame.
+        repeat(3) { nextFrame() }
+        assertNull(awake.tryReceive().getOrNull())
+
+        pulseOn.value = false
+        assertNull(withTimeout(1_000) { awake.receive() })
+        job.cancel()
+    }
+
+    @Test
+    fun `battery saver holds a notification for the next minute`() = runBlocking {
+        val alertAt = MutableStateFlow<Long?>(null)
+        val job = runLoop(
+            pulseOn = MutableStateFlow(true),
+            alertAt = alertAt,
+            pulse = MutableStateFlow(PulseSettings(batterySaver = true)),
+        )
+        assertEquals(digital.frame(time, true).cells(), nextFrame().cells())
+
+        // Not even a repaint when it arrives, nor on a refresh within the same minute.
+        clock.now += 5_000
+        alertAt.value = clock.now
+        assertIdle()
+        clock.now += 5_000
+        loop.refresh()
+        assertEquals(0, nextRing())
+        assertIdle()
+
+        // The minute's repaint (the AOD tick here) starts the pulse.
+        clock.now = nextMinute
+        loop.refresh()
+        assertEquals(0, nextRing())
+        clock.now = nextMinute + RISE_MS
+        awaitRing(255)
+
+        // Once over, the same notification doesn't pulse again at the minute after.
+        clock.now = nextMinute + 60_000
+        loop.refresh()
+        awaitRing(0)
+        assertIdle()
+        job.cancel()
+    }
+
+    @Test
+    fun `battery saver can pulse every minute while a notification is still showing`() = runBlocking {
+        val showing = MutableStateFlow(true)
+        val start = clock.now
+        val job = runLoop(
+            pulseOn = MutableStateFlow(true),
+            alertAt = MutableStateFlow(start - 10 * 60_000),
+            pulse = MutableStateFlow(PulseSettings(count = 5, batterySaver = true, repeatWhileShowing = true)),
+            showing = showing,
+        )
+        // The first look is straight away, and the old notification is still in the shade.
+        assertEquals(0, nextRing())
+        clock.now = start + RISE_MS
+        awaitRing(255)
+        clock.now = start + 10_000
+        awaitRing(0)
+        assertIdle()
+
+        clock.now = nextMinute
+        loop.refresh()
+        assertEquals(0, nextRing())
+        clock.now = nextMinute + RISE_MS
+        awaitRing(255)
+        clock.now = nextMinute + 10_000
+        awaitRing(0)
+        assertIdle()
+
+        // Cleared: the next minute stays dark.
+        showing.value = false
+        clock.now = nextMinute + 60_000
+        loop.refresh()
+        assertEquals(0, nextRing())
+        assertIdle()
         job.cancel()
     }
 
     private companion object {
         /** Comfortably more than the loop's 40 ms frame interval. */
         const val QUIET_MS = 200L
+
+        /** The default rise time: one in, a breath peaks. */
+        const val RISE_MS = 1_000L
     }
 }

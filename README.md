@@ -6,8 +6,9 @@ Three tabs:
   - *Toys*: **Digital clock** and **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
     adjustable active/inactive brightness). Each opens a settings page with a live matrix and a
     **Preview** sheet: scrub the time of day and simulate a notification.
-  - *Addons*: drawn on top of any toy, switched on per toy. **Notification pulse**: the outer
-    ring breathes for a while after a notification.
+  - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
+    the outer ring pulses after a notification, with its rise time, max brightness and number of
+    pulses adjustable, and a battery saver that only checks once a minute, with the clock.
 - **Widgets** – previews of the home-screen widgets to come.
 - **Settings** – updates, theme, device info and about.
 
@@ -38,6 +39,13 @@ cannot update a release install; uninstall first.
 
 `.github/workflows/release.yml` checks the tag matches `versionName`, runs the tests, builds a
 signed `assembleRelease` and publishes it as `nothing-is-free-v0.2.0.apk` on the release.
+
+### Beta releases
+For a preview, use a pre-release `versionName` such as `0.6.0-beta.1` (still bump
+`versionCode`) and tag `v0.6.0-beta.1`. Any tag with a `-` is published as a GitHub pre-release.
+The app only offers pre-releases with **Settings › Updates › Beta updates** on; then it offers
+the highest version among recent releases, so `0.6.0-beta.2` follows `0.6.0-beta.1` and `0.6.0`
+follows both. Turning beta off keeps the installed beta until a newer full release is out.
 
 ### Signing key
 The release key is `~/.android/nothing-is-free-release.jks` (alias `nothing-is-free`). Its

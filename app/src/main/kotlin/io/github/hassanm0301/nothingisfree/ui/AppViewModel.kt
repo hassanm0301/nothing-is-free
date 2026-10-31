@@ -6,8 +6,10 @@ import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
+import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
@@ -38,14 +40,18 @@ class AppViewModel : ViewModel() {
     /** Last alerting notification, as seen by the notification pulse addon. */
     val lastAlertAt: StateFlow<Long?> = RecentNotifications.lastAlertAt
 
+    /** Whether a notification the pulse counts is still in the shade. */
+    val notificationsShowing: StateFlow<Boolean> = RecentNotifications.anyShowing
+
     /** For each addon, the toys it is on for. */
     val addons: StateFlow<Map<AddonId, Set<ToyId>>> = AddonPreferences.enabled
 
     fun setAddon(addon: AddonId, toy: ToyId, on: Boolean) = AddonPreferences.setEnabled(addon, toy, on)
 
-    val pulseWindowSeconds: StateFlow<Int> = AddonPreferences.pulseWindowSeconds
+    /** Notification pulse settings, shared by every toy it is on for. */
+    val pulse: StateFlow<PulseSettings> = AddonPreferences.pulse
 
-    fun setPulseWindowSeconds(seconds: Int) = AddonPreferences.setPulseWindowSeconds(seconds)
+    fun updatePulse(transform: (PulseSettings) -> PulseSettings) = AddonPreferences.updatePulse(transform)
 
     /** Pretend a notification just arrived, so the pulse runs on the phone's matrix. */
     fun testPulseOnPhone() = RecentNotifications.record(System.currentTimeMillis())
@@ -66,4 +72,13 @@ class AppViewModel : ViewModel() {
     fun checkForUpdate() = AppUpdater.check(NothingIsFreeApp.instance)
 
     fun installUpdate(release: Release) = AppUpdater.install(NothingIsFreeApp.instance, release)
+
+    /** Whether updates include GitHub pre-releases. */
+    val betaUpdates: StateFlow<Boolean> = UpdatePreferences.beta
+
+    /** Switch the update channel and look again on the new one. */
+    fun setBetaUpdates(on: Boolean) {
+        UpdatePreferences.setBeta(on)
+        checkForUpdate()
+    }
 }

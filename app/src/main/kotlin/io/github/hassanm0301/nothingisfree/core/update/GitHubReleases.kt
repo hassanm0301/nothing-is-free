@@ -1,5 +1,6 @@
 package io.github.hassanm0301.nothingisfree.core.update
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -10,15 +11,30 @@ object GitHubReleases {
     const val REPO = "hassanm0301/nothing-is-free"
     private const val LATEST_URL = "https://api.github.com/repos/$REPO/releases/latest"
 
-    /** The newest non-draft, non-prerelease release, or null if none is published yet. */
-    fun latest(): Release? {
-        val conn = open(LATEST_URL).apply {
+    /** Newest first by date; enough to find the newest version among recent pre-releases. */
+    private const val LIST_URL = "https://api.github.com/repos/$REPO/releases?per_page=30"
+
+    /**
+     * The release to offer, or null if none is published yet. Without [includePrereleases], the
+     * newest non-draft, non-prerelease one (GitHub's "latest"). With it, the highest version among
+     * recent published releases, pre-releases included.
+     */
+    fun latest(includePrereleases: Boolean = false): Release? =
+        if (includePrereleases) {
+            get(LIST_URL)?.let(::parseList)?.let(Versions::newest)
+        } else {
+            get(LATEST_URL)?.let { parse(JSONObject(it)) }
+        }
+
+    /** The body of a GitHub API call, or null for 404. */
+    private fun get(url: String): String? {
+        val conn = open(url).apply {
             setRequestProperty("Accept", "application/vnd.github+json")
             setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
         }
         try {
             return when (val code = conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> parse(conn.inputStream.use { it.readBytes().decodeToString() })
+                HttpURLConnection.HTTP_OK -> conn.inputStream.use { it.readBytes().decodeToString() }
                 HttpURLConnection.HTTP_NOT_FOUND -> null
                 else -> error("GitHub answered $code")
             }
@@ -45,8 +61,15 @@ object GitHubReleases {
             instanceFollowRedirects = true
         }
 
-    private fun parse(json: String): Release {
-        val o = JSONObject(json)
+    /** Published releases from a list response. Drafts only show up for the repo's owners; skip them anyway. */
+    private fun parseList(json: String): List<Release> {
+        val array = JSONArray(json)
+        return (0 until array.length()).map(array::getJSONObject)
+            .filterNot { it.optBoolean("draft") }
+            .map(::parse)
+    }
+
+    private fun parse(o: JSONObject): Release {
         val assets = o.optJSONArray("assets")
         val all = (0 until (assets?.length() ?: 0)).map { i ->
             val a = assets!!.getJSONObject(i)
@@ -58,6 +81,7 @@ object GitHubReleases {
             notes = if (o.isNull("body")) "" else o.getString("body"),
             pageUrl = o.optString("html_url"),
             apk = Versions.pickApk(all),
+            prerelease = o.optBoolean("prerelease"),
         )
     }
 }
