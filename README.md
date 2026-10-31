@@ -6,8 +6,9 @@ Three tabs:
   - *Toys*: **Digital clock** and **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
     adjustable active/inactive brightness). Each opens a settings page with a live matrix and a
     **Preview** sheet: scrub the time of day and simulate a notification.
-  - *Addons*: drawn on top of any toy, switched on per toy. **Notification pulse**: the outer
-    ring breathes for a while after a notification.
+  - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
+    the outer ring pulses after a notification, with its rise time, max brightness and number of
+    pulses adjustable, and a battery saver that only checks once a minute, with the clock.
 - **Widgets** – previews of the home-screen widgets to come.
 - **Settings** – updates, theme, device info and about.
 

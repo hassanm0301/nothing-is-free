@@ -78,21 +78,28 @@ fun BinaryClockOptions(
 }
 
 /**
- * A 0..255 brightness: label and value, then a slider with ±1 steps for exact values. [onStep]
- * gets the step (+1 or -1) rather than a new value, so it applies to the latest stored value.
+ * A brightness in [range] (out of 255): label and value, then a slider with ±1 steps for exact
+ * values. [onStep] gets the step (+1 or -1) rather than a new value, so it applies to the latest
+ * stored value.
  */
 @Composable
-private fun BrightnessControl(label: String, value: Int, onValueChange: (Int) -> Unit, onStep: (Int) -> Unit) {
+internal fun BrightnessControl(
+    label: String,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    onStep: (Int) -> Unit,
+    range: IntRange = 0..255,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         MonoLabel(label, Modifier.weight(1f))
         MonoLabel("$value / 255", color = MaterialTheme.colorScheme.onBackground)
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        StepButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Decrease $label", enabled = value > 0) {
+        StepButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Decrease $label", enabled = value > range.first) {
             onStep(-1)
         }
-        NothingSlider(value, onValueChange, range = 0..255, modifier = Modifier.weight(1f))
-        StepButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Increase $label", enabled = value < 255) {
+        NothingSlider(value, onValueChange, range = range, modifier = Modifier.weight(1f))
+        StepButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Increase $label", enabled = value < range.last) {
             onStep(1)
         }
     }

@@ -14,7 +14,6 @@ class RecentNotificationsTest {
     @Before
     fun reset() = RecentNotifications.clear()
 
-
     private fun alerting(
         ownPackage: Boolean = false,
         ongoing: Boolean = false,
@@ -63,5 +62,26 @@ class RecentNotificationsTest {
         // And a post time ahead of the clock is clamped to now.
         RecentNotifications.record(90_000, now = 50_000)
         assertEquals(50_000L, RecentNotifications.lastAlertAt.value)
+    }
+
+    @Test
+    fun `counts the notifications still showing that would alert`() {
+        assertTrue(RecentNotifications.counts(ownPackage = false, ongoing = false, IMPORTANCE_DEFAULT, passesDnd = true))
+        assertFalse(RecentNotifications.counts(ownPackage = false, ongoing = true, IMPORTANCE_DEFAULT, passesDnd = true))
+        assertFalse(RecentNotifications.counts(ownPackage = false, ongoing = false, IMPORTANCE_LOW, passesDnd = true))
+
+        assertFalse(RecentNotifications.anyShowing.value)
+        RecentNotifications.showing("a", counts = true)
+        RecentNotifications.showing("b", counts = true)
+        RecentNotifications.removed("a")
+        assertTrue(RecentNotifications.anyShowing.value)
+        // An update that no longer counts (say it became ongoing) drops it too.
+        RecentNotifications.showing("b", counts = false)
+        assertFalse(RecentNotifications.anyShowing.value)
+
+        RecentNotifications.resetShowing(listOf("c"))
+        assertTrue(RecentNotifications.anyShowing.value)
+        RecentNotifications.resetShowing(emptyList())
+        assertFalse(RecentNotifications.anyShowing.value)
     }
 }

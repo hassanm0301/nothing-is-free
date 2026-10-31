@@ -125,7 +125,8 @@ private fun GlyphLists(
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
-    val pulseWindowSeconds by viewModel.pulseWindowSeconds.collectAsStateWithLifecycle()
+    val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
+    val notificationsShowing by viewModel.notificationsShowing.collectAsStateWithLifecycle()
     val now by rememberNow()
 
     val model = NothingDevice.detectedModel
@@ -137,7 +138,8 @@ private fun GlyphLists(
         } else {
             "This phone has no Glyph Matrix, so toys only run as previews here. Tap one to try it."
         }
-        GlyphSection.ADDONS -> "Addons draw on top of any toy. Tap one to choose which toys it's on."
+        GlyphSection.ADDONS ->
+            "Addons draw on top of any toy, switched on from each toy's page. Tap one for its settings."
     }
 
     NothingScreen(insets) {
@@ -155,7 +157,7 @@ private fun GlyphLists(
             GlyphSection.TOYS -> items(ToyId.entries, key = { it.name }) { toy ->
                 val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
                 val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
-                val pulse = rememberPulse(lastAlertAt, pulseWindowSeconds, pulseOn)
+                val pulse = rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
                 val level by remember { derivedStateOf { pulse.value.level } }
                 ListCard(
                     title = toy.title,

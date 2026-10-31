@@ -10,7 +10,9 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrixCanvas
+import io.github.hassanm0301.nothingisfree.glyph.addon.MinuteCheck
 import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
@@ -53,20 +55,37 @@ data class PulseState(val level: Int = 0, val remainingMs: Long = 0) {
 }
 
 /**
- * The notification pulse from [alertAt], animating every frame for [windowSeconds] (rounded up
- * to whole breaths). Idle when [enabled] is false or no pulse is running.
+ * The notification pulse from [alertAt] with [settings], animating every frame while it runs.
+ * With battery saver it starts, as on the phone, at the first minute after a notification, and
+ * with "repeat while showing" each minute while [showing]. Idle when [enabled] is false.
  */
 @Composable
-fun rememberPulse(alertAt: Long?, windowSeconds: Int, enabled: Boolean): State<PulseState> =
-    produceState(PulseState(), alertAt, windowSeconds, enabled) {
-        val windowMs = windowSeconds * 1_000L
+fun rememberPulse(
+    alertAt: Long?,
+    settings: PulseSettings,
+    enabled: Boolean,
+    showing: Boolean = false,
+): State<PulseState> {
+    // Outlives restarts of the producer below, so a new key doesn't count as a new minute.
+    val check = remember { MinuteCheck() }
+    return produceState(PulseState(), alertAt, settings, enabled, showing) {
         while (enabled) {
-            val elapsed = PulseWave.elapsed(alertAt, windowMs, System.currentTimeMillis()) ?: break
-            value = PulseState(PulseWave.level(elapsed), PulseWave.duration(windowMs) - elapsed)
-            withFrameMillis { }
+            val now = System.currentTimeMillis()
+            val saverStart = check.update(now, alertAt, settings.repeatWhileShowing && showing)
+            val startAt = if (settings.batterySaver) saverStart else alertAt
+            val elapsed = PulseWave.elapsed(startAt, settings.durationMs, now)
+            if (elapsed != null) {
+                value = PulseState(settings.level(elapsed), settings.durationMs - elapsed)
+                withFrameMillis { }
+            } else {
+                value = PulseState()
+                if (!settings.batterySaver) break
+                delay(MinuteCheck.MINUTE_MS - now % MinuteCheck.MINUTE_MS)
+            }
         }
         value = PulseState()
     }
+}
 
 /** How the phone shows a time on this device: 24-hour or 12-hour, as a toy would. */
 @Composable

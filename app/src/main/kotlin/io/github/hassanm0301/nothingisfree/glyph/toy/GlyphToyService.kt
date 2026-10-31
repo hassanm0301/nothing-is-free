@@ -18,12 +18,10 @@ import com.nothing.ketchum.GlyphToy
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
-import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -45,7 +43,7 @@ abstract class GlyphToyService : Service() {
 
     private val scope = MainScope()
     private val tag = javaClass.simpleName
-    private var jobs: List<Job> = emptyList()
+    private var job: Job? = null
     private var loop: ToyLoop? = null
 
     /** Keeps the CPU up while the notification pulse runs, so it animates with the screen off. */
@@ -100,28 +98,24 @@ abstract class GlyphToyService : Service() {
                 }
             },
             is24Hour = { DateFormat.is24HourFormat(this) },
+            // Held for what is left of a running pulse, and let go when it ends or is switched off.
+            keepAwake = { forMs -> if (forMs != null) wakeLock.acquire(forMs) else releaseWakeLock() },
         )
         loop = toyLoop
-        val pulseOn = AddonPreferences.enabledFlow(AddonId.NOTIFICATION_PULSE, toyId)
-        val alerts = RecentNotifications.lastAlertAt
-        val window = AddonPreferences.pulseWindowSeconds
-        jobs = listOf(
-            scope.launch { toyLoop.run(faces(size), pulseOn, alerts, window) },
-            scope.launch {
-                // Held for what is left of a running pulse, and let go early if it is switched off.
-                // A pulse that hasn't started (an alert time ahead of a clock set back) holds nothing.
-                combine(pulseOn, alerts, window) { on, at, seconds -> Triple(on, at, seconds * 1_000L) }
-                    .collect { (on, at, windowMs) ->
-                        val elapsed = PulseWave.elapsed(at?.takeIf { on }, windowMs, System.currentTimeMillis())
-                        if (elapsed != null) wakeLock.acquire(PulseWave.duration(windowMs) - elapsed) else releaseWakeLock()
-                    }
-            },
-        )
+        job = scope.launch {
+            toyLoop.run(
+                faces(size),
+                AddonPreferences.enabledFlow(AddonId.NOTIFICATION_PULSE, toyId),
+                AddonPreferences.pulse,
+                RecentNotifications.lastAlertAt,
+                RecentNotifications.anyShowing,
+            )
+        }
     }
 
     private fun stop() {
-        jobs.forEach { it.cancel() }
-        jobs = emptyList()
+        job?.cancel()
+        job = null
         loop = null
         releaseWakeLock()
     }

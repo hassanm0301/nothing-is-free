@@ -22,23 +22,26 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
     toy's face with its current options. Persisted by name (addon settings), so don't rename
     entries.
   - `ToyLoop` – the one SDK-free loop every toy runs: a frame each minute and on `refresh()`, one
-    at once when the face, the addon switch, the last alert or the pulse window changes, and 25 fps
-    while a notification pulse is running. Draws through `frame()` (see [addons](#addons)).
+    at once when the face, the addon switch, the last alert (unless on battery saver) or the pulse
+    settings change, and 25 fps while a notification pulse is running. Draws through `frame()` (see
+    [addons](#addons)), and says how long a pulse has left so the service can keep the CPU up.
   - `GlyphToyService` – the base service. Binds `GlyphMatrixManager` and registers the device,
     runs `ToyLoop`, pushes frames with `setMatrixFrame` (dropped frames are logged), forwards
-    `EVENT_AOD` to `refresh()`, and holds the pulse wake lock. Each toy only gives its `toyId` and
-    `faces(size)`, a flow that emits again when the toy's options change.
+    `EVENT_AOD` to `refresh()`, and holds the pulse wake lock as `ToyLoop` asks. Each toy only
+    gives its `toyId` and `faces(size)`, a flow that emits again when the toy's options change.
   - `MatrixArbiter` – shares the SDK's singleton manager between toys: `init` for the first bound
     toy, `turnOff` + `unInit` after the last, and only the most recently bound toy draws. The
     Glyph service may bind a newly picked toy before unbinding the old one; without this the new
     toy stayed blank and the old one's `unInit` tore down the shared connection.
   - `RoundMatrix` – the round LED mask every face draws inside.
 - `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on per toy:
-  - `AddonPreferences` – which toys each addon is on for, and the pulse window, persisted.
+  - `AddonPreferences` – which toys each addon is on for, and the pulse settings
+    (`PulseSettings`), persisted.
   - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, …)`,
     the full frame a toy shows: face plus pulse. The toy services and the in-app previews both draw
     through it, so a preview is exactly what the matrix shows.
-  - `PulseWave` – the breathing curve and window maths.
+  - `PulseWave` – the breathing curve and pulse timing; `MinuteCheck`, battery saver's
+    once-a-minute look at the notifications.
 
 ## SDK facts (read from the 2.0 AAR)
 - `Glyph.DEVICE_*` are `Build.MODEL` strings, not codenames: Phone (4a) Pro is `A069P`
@@ -94,42 +97,59 @@ No notification access is needed unless the notification pulse is switched on fo
 
 ## Addons
 Addons draw on top of any toy, only outside the area its face occupies, and each is switched on
-per toy. In the app, the **Glyph** tab's **Addons** sub-tab lists them; tapping one opens its
-settings, with a switch for each toy and a **Test on phone** button.
+per toy from that toy's page (its **Addons** section). In the app, the **Glyph** tab's **Addons**
+sub-tab lists them; tapping one opens its settings and a **Test on phone** button.
 
 ### Notification pulse
 When an alerting notification arrives, the outer ring of the matrix (the edge LEDs the face leaves
-free) breathes, 2 s per breath, for the chosen window rounded up to whole breaths. Then the toy
-goes back to steady.
+free) pulses: it fades up to the max brightness and back down, a set number of times. Then the toy
+goes back to steady. The settings are shared by every toy.
 
-- **Per-toy switch** – on for the Digital clock by default, as the old Pulse clock was; off for
-  the Binary clock. Switching it off mid-pulse stops the pulse at once.
-- **Window** – how long after a notification the ring keeps breathing: 10 s, 30 s (default),
-  1 min, 2 min or 5 min. One setting for every toy; the old Pulse clock's choice carries over.
+- **Per-toy switch** – on a toy's page. On for the Digital clock by default, as the old Pulse
+  clock was; off for the Binary clock. Switching it off mid-pulse stops the pulse at once.
+- **Time to max brightness** – 0.5 s, 1 s (default), 1.5 s, 2 s or 3 s. Fading back down takes
+  as long again, so a pulse lasts twice this.
+- **Max brightness** – the peak of each pulse, 1..255 (default 255).
+- **Number of pulses** – 1, 3, 5, 10, 15 (default), 30 or 60. The old "pulse for" window carries
+  over as the number of 2 s pulses that filled it (5 min becomes 60).
+- **Battery saver** – off by default. On, a notification no longer starts the pulse by itself:
+  the toy only looks at notifications on the first repaint of each minute (the clock update, from
+  the loop's own minute timer or `EVENT_AOD`), and pulses then if one arrived since the last look
+  (at most two minutes back, so a first look after a gap doesn't pulse for old news). The pulse
+  runs alongside the clock update instead of waking the phone up a second time.
+- **Pulse for old ones too** – needs battery saver. Pulses every minute while a counted
+  notification (not ours, not ongoing, not silent, not held back by Do Not Disturb) is still in the
+  shade, new or not, until they are dismissed.
 - **Notification access** – the app only learns about notifications through
   `GlyphNotificationListener`, shown in system settings as "Glyph notification pulse".
   Without access the ring never pulses.
 - **Wake lock** – while a pulse runs on a toy it is on for, `GlyphToyService` holds a partial
-  wake lock (not reference counted) for what is left of the pulse, so the animation keeps
-  running with the screen off. It is let go when the pulse ends, when the addon is switched off
-  for the toy, and when the toy stops. A toy without the pulse never takes it.
-- **Test on phone** starts a pulse without waiting for a notification.
+  wake lock (not reference counted) for what is left of the pulse, as `ToyLoop` reports it, so the
+  animation keeps running with the screen off. It is let go when the pulse ends, when the addon is
+  switched off for the toy, and when the toy stops. A toy without the pulse never takes it.
+- **Test on phone** starts a pulse without waiting for a notification (at the next minute with
+  battery saver).
+- In the app, the toy pages' live matrix follows the same settings, battery saver included; the
+  **Preview** sheet's simulated notification always pulses at once.
 
 - `glyph/addon/NotificationPulse` – the ring: the round matrix's edge minus what the face
   occupies (`ToyLoop` works it out once per face, not per frame). Also `frame()`, which lays it
   over the face.
-- `glyph/addon/PulseWave` – the breathing curve and window maths.
-- `glyph/addon/AddonPreferences` – the per-toy switch and the window, persisted.
+- `glyph/addon/PulseWave` – the breathing curve and pulse timing. `MinuteCheck` there is battery
+  saver: the first call each minute is the look, and it says when the latest pulse started.
+- `glyph/addon/AddonPreferences` – the per-toy switch and `PulseSettings`, persisted.
 - `glyph/toy/ToyLoop` – animates the ring at 25 fps while a pulse runs on a toy it is on for.
 - `core/notifications/GlyphNotificationListener` – stamps `RecentNotifications` when an
   alerting notification arrives. Skipped: our own, ongoing (media, downloads), silent channels,
-  ones Do Not Disturb blocks, and `FLAG_ONLY_ALERT_ONCE` updates to one already showing.
+  ones Do Not Disturb blocks, and `FLAG_ONLY_ALERT_ONCE` updates to one already showing. Also
+  keeps `RecentNotifications.anyShowing`, whether a counted notification is still in the shade.
 
 #### Using it on the Phone (4a) Pro
 1. Install and open the app: Glyph > Addons > Notification pulse > **Grant access**, and allow
    notification access. On a sideloaded build Android may block this as a restricted setting:
    App info > ⋮ > Allow restricted settings, then try again.
-2. Switch the pulse on for the toy you use, and pick that toy on the phone (see [toys](#toys)).
+2. Open the toy you use (Glyph > Toys), switch the pulse on under **Addons**, and pick that toy
+   on the phone (see [toys](#toys)).
 3. Flip the phone. **Test on phone** starts a pulse without waiting for a notification.
 
 ## Next steps
