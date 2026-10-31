@@ -53,13 +53,14 @@ fun ToyDetailScreen(
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
-    val pulseWindowSeconds by viewModel.pulseWindowSeconds.collectAsStateWithLifecycle()
+    val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
+    val notificationsShowing by viewModel.notificationsShowing.collectAsStateWithLifecycle()
     val now by rememberNow()
     var previewing by rememberSaveable { mutableStateOf(false) }
 
     val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
     val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
-    val pulse by rememberPulse(lastAlertAt, pulseWindowSeconds, pulseOn)
+    val pulse by rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
 
     NothingScreen(insets) {
         detailHeader("Glyph", onBack, kicker = "Glyph toy", title = toy.title, body = toy.summary)
