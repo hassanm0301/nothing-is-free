@@ -1,17 +1,26 @@
 package io.github.hassanm0301.nothingisfree.ui.widgets
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,19 +43,40 @@ import java.time.format.DateTimeFormatter
 private val DateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE dd MMM")
 
 /**
- * Widgets tab: the surfaces home-screen widgets will use. Previews only until the Glance widgets
- * land (docs/WIDGETS.md); battery and steps show sample values.
+ * Widgets tab: Precise volume, which opens its own page, and the surfaces home-screen widgets will
+ * use. Those are previews only until the Glance widgets land (docs/WIDGETS.md); battery and steps
+ * show sample values.
  */
 @Composable
 fun WidgetsScreen(viewModel: AppViewModel, insets: PaddingValues) {
+    var volumeOpen by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = volumeOpen) { volumeOpen = false }
+    // Keeps the list's scroll position while the page is open.
+    val pageState = rememberSaveableStateHolder()
+
+    pageState.SaveableStateProvider(if (volumeOpen) "precise_volume" else "list") {
+        if (volumeOpen) {
+            PreciseVolumeScreen(viewModel, insets, onBack = { volumeOpen = false })
+        } else {
+            WidgetsList(viewModel, insets, onOpenPreciseVolume = { volumeOpen = true })
+        }
+    }
+}
+
+@Composable
+private fun WidgetsList(viewModel: AppViewModel, insets: PaddingValues, onOpenPreciseVolume: () -> Unit) {
     val now by viewModel.now.collectAsStateWithLifecycle()
 
     NothingScreen(insets) {
         screenHeader(
-            "Home screen · coming soon",
+            "Volume · home screen",
             "Widgets",
-            "Previews of the widgets on the way. They can't be placed on the home screen yet.",
+            "Precise volume works now. The home-screen widgets below are previews and can't be placed yet.",
         )
+        item {
+            SectionHeader("Volume")
+            PreciseVolumeCard(viewModel, onClick = onOpenPreciseVolume)
+        }
         item {
             SectionHeader("Clock")
             ClockWidget(now)
@@ -56,6 +86,38 @@ fun WidgetsScreen(viewModel: AppViewModel, insets: PaddingValues) {
             StatusWidgets()
             Spacer(Modifier.height(Spacing.sm))
             PlaceholderTile("Widget slot · coming soon", Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/** Opens Precise volume's page; says whether it is on and how it writes the level. */
+@Composable
+private fun PreciseVolumeCard(viewModel: AppViewModel, onClick: () -> Unit) {
+    val format by viewModel.volumeFormat.collectAsStateWithLifecycle()
+    val on by rememberPreciseVolumeOn()
+
+    NothingCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Precise volume", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(Spacing.xs))
+                Text(
+                    "The volume level as text, beside the volume bar",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NothingTheme.colors.muted,
+                )
+                Spacer(Modifier.height(Spacing.xs))
+                MonoLabel(
+                    if (on) "On · ${format.title}" else "Off",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NothingTheme.colors.accent,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = NothingTheme.colors.muted,
+            )
         }
     }
 }
