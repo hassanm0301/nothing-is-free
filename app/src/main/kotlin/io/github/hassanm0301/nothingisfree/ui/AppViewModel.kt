@@ -3,12 +3,14 @@ package io.github.hassanm0301.nothingisfree.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryLevel
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
 import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
@@ -55,6 +57,15 @@ class AppViewModel : ViewModel() {
 
     /** Pretend a notification just arrived, so the pulse runs on the phone's matrix. */
     fun testPulseOnPhone() = RecentNotifications.record(System.currentTimeMillis())
+
+    /** Battery level addon settings, shared by every toy it is on for. */
+    val battery: StateFlow<BatterySettings> = AddonPreferences.battery
+
+    fun updateBattery(transform: (BatterySettings) -> BatterySettings) = AddonPreferences.updateBattery(transform)
+
+    /** The phone's battery level, 0..100 (null if unknown), followed while a screen shows it. */
+    val batteryPercent: StateFlow<Int?> = BatteryLevel.changes(NothingIsFreeApp.instance)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BatteryLevel.read(NothingIsFreeApp.instance))
 
     /** Binary clock toy options; the toy redraws as soon as they change. */
     val binaryClock: StateFlow<BinaryClockSettings> = BinaryClockPreferences.settings

@@ -159,12 +159,13 @@ private fun GlyphLists(
                 val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
                 val pulse = rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
                 val level by remember { derivedStateOf { pulse.value.level } }
+                val battery = batteryGauge(viewModel, toy)
                 ListCard(
                     title = toy.title,
                     body = toy.summary,
                     tags = AddonId.entries.filter { toy in addons[it].orEmpty() }.map { "+ ${it.title}" },
                     onClick = { onOpen(GlyphPage.Toy(toy)) },
-                    leading = { ToyMatrix(face, now, level, Modifier.size(72.dp)) },
+                    leading = { ToyMatrix(face, now, level, Modifier.size(72.dp), battery) },
                 )
             }
             GlyphSection.ADDONS -> items(AddonId.entries, key = { it.name }) { addon ->
