@@ -326,10 +326,24 @@ private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
                 viewModel.updateBattery { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
             },
         )
+        Spacer(Modifier.height(Spacing.sm))
+        DotDivider()
+        NothingListRow(
+            "Fade the highest dot",
+            subtitle = "Dims as its ${100 / BatteryBar.DOTS}% runs out",
+            trailing = {
+                NothingSwitch(battery.fadeHighestDot, { on -> viewModel.updateBattery { it.copy(fadeHighestDot = on) } })
+            },
+        )
     }
     Spacer(Modifier.height(Spacing.sm))
     Text(
-        "Used-up dots at 0% stay dark, so only the charge left shows.",
+        if (battery.fadeHighestDot) {
+            "The highest lit dot goes from Charge towards Used up as its share runs out: at 80% the " +
+                "fourth dot is at Charge, at 70% it is halfway. Used-up dots at 0% stay dark."
+        } else {
+            "Used-up dots at 0% stay dark, so only the charge left shows."
+        },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
     )

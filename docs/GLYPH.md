@@ -179,6 +179,13 @@ every toy; there is no permission to grant.
 - **Charge / used-up brightness** – 1..100 % (default 100 %) for the dots still holding charge,
   and 0..100 % (default 10 %) for the used-up ones; 0 % leaves them dark so only the charge shows.
   Values saved on the old 0..255 scale are converted once.
+- **Fade the highest dot** – off by default. On, the highest lit dot shows how much of its 20% is
+  left: from the charge brightness when its share is full, down towards the used-up brightness as
+  it runs out (linear in the brightness setting). At 80% the fourth dot is at full charge
+  brightness, at 70% halfway, at 61% nearly used up; at 81% the fifth dot is just above used up.
+  With used-up at 0 % that is the plain fraction: 70% puts the fourth dot at 50 %. Starting from
+  the used-up brightness rather than 0 keeps a part-charged dot from looking dimmer than an empty
+  one. The level is still read once a minute, so the fade moves in 1% steps with the clock.
 - **With the notification pulse** – the pulse ring leaves out the bar's dots (`AddonLayout`), so
   a pulse runs around the bar and never hides the level.
 - **When it updates** – the toy reads the level (the last sticky battery broadcast, no receiver)
@@ -189,7 +196,7 @@ every toy; there is no permission to grant.
   the toy pages and the preview sheet show the bar at the phone's real level.
 
 - `glyph/addon/BatteryBar` – which LEDs make the bar and in what order they light (`cells`), how
-  many are lit (`lit`), and `draw`.
+  many are lit (`lit`), how full the highest one is (`highestDotCharge`), and `draw`.
 - `glyph/addon/AddonLayout` (in `BatteryBar.kt`) – the bar and the pulse ring for a face.
 - `core/battery/BatteryLevel` – `read()` for the toys; `changes()`, a receiver-backed flow, for
   the app's screens while they show.

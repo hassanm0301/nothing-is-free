@@ -66,6 +66,49 @@ class BatteryBarTest {
     }
 
     @Test
+    fun `the highest dot's charge is what is left of its share`() {
+        assertEquals(1.0, BatteryBar.highestDotCharge(80), 1e-9)
+        assertEquals(0.5, BatteryBar.highestDotCharge(70), 1e-9)
+        assertEquals(0.05, BatteryBar.highestDotCharge(81), 1e-9)
+        assertEquals(1.0, BatteryBar.highestDotCharge(100), 1e-9)
+        assertEquals(0.05, BatteryBar.highestDotCharge(1), 1e-9)
+        assertEquals(0.0, BatteryBar.highestDotCharge(0), 1e-9)
+        assertEquals(0.5, BatteryBar.highestDotCharge(50, dots = 3), 1e-9)
+    }
+
+    /** The top row at [percent] with [settings] on the top edge. */
+    private fun topRow(settings: BatterySettings, percent: Int) =
+        digital.frame(LocalTime.NOON, true, battery = BatteryGauge(settings.copy(edge = BatteryEdge.TOP), percent))
+            .let { frame -> (4..8).map { frame[it, 0] } }
+
+    @Test
+    fun `fading dims the highest dot by what is left of its share`() {
+        val settings = BatterySettings(emptyBrightness = 0, fadeHighestDot = true)
+        // At 80% the fourth dot is full; at 70% it holds half its 20%, so half as bright.
+        assertEquals(listOf(255, 255, 255, 255, 0), topRow(settings, 80))
+        assertEquals(listOf(255, 255, 255, 128, 0), topRow(settings, 70))
+        // Just into the fifth dot: 5% of its share, 5% bright.
+        assertEquals(listOf(255, 255, 255, 255, 13), topRow(settings, 81))
+        assertEquals(listOf(255, 255, 255, 255, 255), topRow(settings, 100))
+        assertEquals(listOf(0, 0, 0, 0, 0), topRow(settings, 0))
+        // Draining the other way, the highest dot is the one on the left.
+        assertEquals(listOf(0, 128, 255, 255, 255), topRow(settings.copy(drain = BatteryDrain.LEFT_TO_RIGHT), 70))
+    }
+
+    @Test
+    fun `a fading dot goes from charge towards used-up brightness, never below it`() {
+        val settings = BatterySettings(brightness = 100, emptyBrightness = 10, fadeHighestDot = true)
+        // Halfway between 100% and 10% is 55%; used up is 10%.
+        assertEquals(listOf(255, 255, 255, 140, 26), topRow(settings, 70))
+        assertEquals(listOf(255, 255, 255, 255, 37), topRow(settings, 81))
+    }
+
+    @Test
+    fun `without fading the highest dot is as bright as the rest`() {
+        assertEquals(listOf(255, 255, 255, 255, 0), topRow(BatterySettings(emptyBrightness = 0), 70))
+    }
+
+    @Test
     fun `used-up dots at 0 stay dark`() {
         val settings = BatterySettings(edge = BatteryEdge.BOTTOM, emptyBrightness = 0)
         val frame = digital.frame(LocalTime.of(10, 10), true, battery = BatteryGauge(settings, 21))

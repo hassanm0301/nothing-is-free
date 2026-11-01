@@ -42,12 +42,41 @@ object BatteryBar {
     /** How many of [dots] are lit at [percent]: each holds an equal share, lit until it is used up. */
     fun lit(percent: Int, dots: Int = DOTS): Int = (percent.coerceIn(0, 100) * dots + 99) / 100
 
-    /** Draw [gauge] on [frame] over [bar], the cells from [cells]: lit dots, then the used-up ones. */
+    /**
+     * How much of the highest lit dot's share is left at [percent], 0..1: 1 when it is full (80%
+     * on five dots), 0.5 when half used (70%), and 0 with nothing lit.
+     */
+    fun highestDotCharge(percent: Int, dots: Int = DOTS): Double {
+        val p = percent.coerceIn(0, 100)
+        val lit = lit(p, dots)
+        if (lit == 0) return 0.0
+        // In hundredths of one dot's share.
+        return (p * dots - (lit - 1) * 100) / 100.0
+    }
+
+    /**
+     * Draw [gauge] on [frame] over [bar], the cells from [cells]: lit dots, then the used-up ones.
+     * With [BatterySettings.fadeHighestDot], the highest lit dot sits between the two brightnesses
+     * by how much of its share is left.
+     */
     fun draw(frame: DotMatrix, bar: List<Pair<Int, Int>>, gauge: BatteryGauge) {
+        val s = gauge.settings
         val lit = lit(gauge.percent, bar.size)
-        val on = Brightness.level(gauge.settings.brightness)
-        val off = Brightness.level(gauge.settings.emptyBrightness)
-        bar.forEachIndexed { i, (x, y) -> frame[x, y] = if (i < lit) on else off }
+        val on = Brightness.level(s.brightness)
+        val off = Brightness.level(s.emptyBrightness)
+        val highest = if (s.fadeHighestDot) {
+            val left = highestDotCharge(gauge.percent, bar.size)
+            Brightness.level(s.emptyBrightness + (s.brightness - s.emptyBrightness) * left)
+        } else {
+            on
+        }
+        bar.forEachIndexed { i, (x, y) ->
+            frame[x, y] = when {
+                i >= lit -> off
+                i == lit - 1 -> highest
+                else -> on
+            }
+        }
     }
 }
 
