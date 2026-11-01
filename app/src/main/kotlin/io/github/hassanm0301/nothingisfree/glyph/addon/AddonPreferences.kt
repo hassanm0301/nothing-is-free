@@ -136,12 +136,16 @@ enum class BatteryDrain(val label: String) {
  * @property drain which way the bar empties when [edge] is the top or bottom; ignored on the sides.
  * @property brightness the dots still holding charge.
  * @property emptyBrightness the dots already used up; 0 leaves them dark, so only the charge shows.
+ * @property fadeHighestDot dim the highest lit dot by how much of its share is left: from
+ *   [brightness] with its share full down towards [emptyBrightness] as it runs out. At 70% the
+ *   fourth of five dots holds half its 20%, so it sits halfway between the two.
  */
 data class BatterySettings(
     val edge: BatteryEdge = BatteryEdge.TOP,
     val drain: BatteryDrain = BatteryDrain.RIGHT_TO_LEFT,
     val brightness: Int = 100,
     val emptyBrightness: Int = 10,
+    val fadeHighestDot: Boolean = false,
 )
 
 /**
@@ -163,6 +167,7 @@ object AddonPreferences {
     private const val KEY_BATTERY_DRAIN = "battery_drain"
     private const val KEY_BATTERY_BRIGHTNESS = "battery_brightness_percent"
     private const val KEY_BATTERY_EMPTY_BRIGHTNESS = "battery_empty_brightness_percent"
+    private const val KEY_BATTERY_FADE = "battery_fade_highest_dot"
 
     /** Battery brightness saved on the old 0..255 scale, converted the first time it is read. */
     private const val KEY_LEGACY_BATTERY_BRIGHTNESS = "battery_brightness"
@@ -216,6 +221,7 @@ object AddonPreferences {
             brightness = percent(p, KEY_BATTERY_BRIGHTNESS, KEY_LEGACY_BATTERY_BRIGHTNESS, b.brightness)
                 .coerceAtLeast(1),
             emptyBrightness = percent(p, KEY_BATTERY_EMPTY_BRIGHTNESS, KEY_LEGACY_BATTERY_EMPTY_BRIGHTNESS, b.emptyBrightness),
+            fadeHighestDot = p.getBoolean(KEY_BATTERY_FADE, b.fadeHighestDot),
         )
     }
 
@@ -263,6 +269,7 @@ object AddonPreferences {
             putString(KEY_BATTERY_DRAIN, s.drain.name)
             putInt(KEY_BATTERY_BRIGHTNESS, s.brightness.coerceIn(1, 100))
             putInt(KEY_BATTERY_EMPTY_BRIGHTNESS, s.emptyBrightness.coerceIn(0, 100))
+            putBoolean(KEY_BATTERY_FADE, s.fadeHighestDot)
         }
     }
 
