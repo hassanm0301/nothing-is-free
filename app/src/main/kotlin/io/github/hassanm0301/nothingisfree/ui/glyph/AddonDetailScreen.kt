@@ -1,10 +1,16 @@
 package io.github.hassanm0301.nothingisfree.ui.glyph
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,20 +18,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.notifications.GlyphNotificationListener
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
-import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
 import io.github.hassanm0301.nothingisfree.ui.components.ButtonVariant
 import io.github.hassanm0301.nothingisfree.ui.components.DotDivider
 import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
 import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
-import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
 import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
@@ -64,35 +76,70 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
         onPauseOrDispose { }
     }
 
-    SectionHeader("Pulse")
+    val update = viewModel::updatePulse
+    SectionHeader("Steps")
     NothingCard {
-        MonoLabel("Time to max brightness")
-        Spacer(Modifier.height(Spacing.sm))
-        ChoiceChips(AddonPreferences.riseChoices, pulse.riseMs, ::formatMs) { ms ->
-            viewModel.updatePulse { it.copy(riseMs = ms) }
+        PulseShape(pulse.steps, Modifier.fillMaxWidth().height(56.dp))
+        pulse.steps.forEachIndexed { i, step ->
+            val last = i == pulse.steps.lastIndex
+            Spacer(Modifier.height(Spacing.sm))
+            DotDivider()
+            Row(Modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                MonoLabel(if (last) "Step ${i + 1} · back to 0%" else "Step ${i + 1}", Modifier.weight(1f))
+                if (!last && pulse.steps.size > 2) {
+                    IconButton(onClick = { update { it.removeStep(i) } }) {
+                        Icon(Icons.Filled.Close, "Remove step ${i + 1}", tint = NothingTheme.colors.muted)
+                    }
+                }
+            }
+            if (!last) {
+                PercentControl(
+                    "Brightness",
+                    step.brightness,
+                    onValueChange = { v -> update { it.withStep(i) { s -> s.copy(brightness = v) } } },
+                    onStep = { d -> update { it.withStep(i) { s -> s.copy(brightness = s.brightness + d) } } },
+                )
+            }
+            TimeControl(
+                if (last) "Time to fade out" else "Time to reach it",
+                step.durationMs,
+                PulseSettings.MIN_STEP_MS..PulseSettings.MAX_STEP_MS,
+                onValueChange = { ms -> update { it.withStep(i) { s -> s.copy(durationMs = ms) } } },
+                onStep = { d -> update { it.withStep(i) { s -> s.copy(durationMs = s.durationMs + d) } } },
+            )
         }
-        Spacer(Modifier.height(Spacing.lg))
-
-        BrightnessControl(
-            "Max brightness",
-            pulse.maxBrightness,
-            onValueChange = { v -> viewModel.updatePulse { it.copy(maxBrightness = v) } },
-            onStep = { d -> viewModel.updatePulse { it.copy(maxBrightness = (it.maxBrightness + d).coerceIn(1, 255)) } },
-            range = 1..255,
+        Spacer(Modifier.height(Spacing.md))
+        NothingButton(
+            "Add step",
+            onClick = { update { it.addStep() } },
+            variant = ButtonVariant.Secondary,
+            enabled = pulse.steps.size < PulseSettings.MAX_STEPS,
         )
-        Spacer(Modifier.height(Spacing.lg))
-
-        MonoLabel("Number of pulses")
-        Spacer(Modifier.height(Spacing.sm))
-        ChoiceChips(AddonPreferences.countChoices, pulse.count, { "$it" }) { n ->
-            viewModel.updatePulse { it.copy(count = n) }
-        }
     }
     Spacer(Modifier.height(Spacing.sm))
-    val total = formatMs(pulse.durationMs)
     Text(
-        "Each pulse fades up to max brightness and back down in the same time. " +
-            if (pulse.count == 1) "One pulse takes $total." else "${pulse.count} pulses take $total.",
+        "Each step eases from the brightness before it to its own over its time; the first starts " +
+            "dark and the last always goes back to 0%. Up to ${PulseSettings.MAX_STEPS} steps. " +
+            "One run takes ${formatMs(pulse.cycleMs)}.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Repeat")
+    NothingCard {
+        SliderControl(
+            "Times",
+            pulse.repeat,
+            1..PulseSettings.MAX_REPEAT,
+            { "×$it" },
+            onValueChange = { n -> update { it.copy(repeat = n) } },
+            onStep = { d -> update { it.copy(repeat = it.repeat + d) } },
+        )
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "After a notification the steps play ${pulse.repeat} " + (if (pulse.repeat == 1) "time" else "times") +
+            ", ${formatMs(pulse.durationMs)} in all, ending dark each time.",
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
     )
@@ -171,26 +218,24 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
     )
 }
 
-/** One chip per choice in a wrapping row, the [selected] one filled. */
+/** One run of [steps] as a line: time across, brightness up. */
 @Composable
-private fun <T> ChoiceChips(choices: List<T>, selected: T, label: (T) -> String, onPick: (T) -> Unit) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        choices.forEach { choice ->
-            NothingChip(text = label(choice), selected = choice == selected, onClick = { onPick(choice) })
+private fun PulseShape(steps: List<PulseStep>, modifier: Modifier = Modifier) {
+    val ink = MaterialTheme.colorScheme.onBackground
+    val hairline = NothingTheme.colors.hairline
+    Canvas(modifier) {
+        val cycle = steps.sumOf { it.durationMs }.coerceAtLeast(1)
+        val inset = 2.dp.toPx()
+        val h = size.height - 2 * inset
+        drawLine(hairline, Offset(0f, size.height - inset), Offset(size.width, size.height - inset), 1.dp.toPx())
+        val samples = (size.width / 2).toInt().coerceAtLeast(2)
+        val path = Path()
+        for (i in 0..samples) {
+            val x = size.width * i / samples
+            val level = PulseWave.level(steps, (cycle * i / samples).coerceAtMost(cycle - 1))
+            val y = inset + h * (1 - level / 255f)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
-    }
-}
-
-/** A duration for the UI: "1.5 s", "30 s", "1 min 30 s". */
-private fun formatMs(ms: Long): String {
-    val tenths = (ms + 50) / 100
-    val seconds = tenths / 10
-    return when {
-        seconds >= 60 -> "${seconds / 60} min" + if (seconds % 60 != 0L) " ${seconds % 60} s" else ""
-        tenths % 10 == 0L -> "$seconds s"
-        else -> "$seconds.${tenths % 10} s"
+        drawPath(path, ink, style = Stroke(width = 2.dp.toPx()))
     }
 }

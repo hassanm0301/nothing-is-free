@@ -36,11 +36,11 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   - `RoundMatrix` – the round LED mask every face draws inside.
 - `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on per toy:
   - `AddonPreferences` – which toys each addon is on for, and the pulse settings
-    (`PulseSettings`), persisted.
+    (`PulseSettings`: steps, repeat, battery saver), persisted.
   - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, …)`,
     the full frame a toy shows: face plus pulse. The toy services and the in-app previews both draw
     through it, so a preview is exactly what the matrix shows.
-  - `PulseWave` – the breathing curve and pulse timing; `MinuteCheck`, battery saver's
+  - `PulseWave` – the ring level over a run of `PulseStep`s; `MinuteCheck`, battery saver's
     once-a-minute look at the notifications.
 
 ## SDK facts (read from the 2.0 AAR)
@@ -85,8 +85,9 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 - **Unused bits** – the bits a digit never needs (8 and 4 of the hours tens, and its 2 on a
   12-hour clock; 8 of the minutes tens) stay dark, or show at the inactive brightness to
   complete the 4x4 grid.
-- **Active / inactive brightness** – 0..255, rescaled to the hardware's 0..4095. Inactive 0 leaves
-  clear bits dark, so only the set bits show.
+- **Active / inactive brightness** – 0..100 % (defaults 100 % and 10 %), turned into matrix
+  levels by `dotmatrix/Brightness` and rescaled to the hardware's 0..4095. Inactive 0 leaves clear
+  bits dark, so only the set bits show. Values saved on the old 0..255 scale are converted once.
 
 - `glyph/toy/BinaryClockFace` – the frame.
 - `glyph/toy/BinaryClockToyService` – the toy service. Its face flow emits again whenever the
@@ -102,16 +103,21 @@ sub-tab lists them; tapping one opens its settings and a **Test on phone** butto
 
 ### Notification pulse
 When an alerting notification arrives, the outer ring of the matrix (the edge LEDs the face leaves
-free) pulses: it fades up to the max brightness and back down, a set number of times. Then the toy
-goes back to steady. The settings are shared by every toy.
+free) plays a pulse pattern you build from steps, a set number of times. Then the toy goes back to
+steady. The settings are shared by every toy. Every brightness in the app is 0..100 %, and every
+time goes in steps of 0.1 s.
 
 - **Per-toy switch** – on a toy's page. On for the Digital clock by default, as the old Pulse
   clock was; off for the Binary clock. Switching it off mid-pulse stops the pulse at once.
-- **Time to max brightness** – 0.5 s, 1 s (default), 1.5 s, 2 s or 3 s. Fading back down takes
-  as long again, so a pulse lasts twice this.
-- **Max brightness** – the peak of each pulse, 1..255 (default 255).
-- **Number of pulses** – 1, 3, 5, 10, 15 (default), 30 or 60. The old "pulse for" window carries
-  over as the number of 2 s pulses that filled it (5 min becomes 60).
+- **Steps** – up to 8 (`PulseSettings.MAX_STEPS`). Each has a brightness and a time to reach it,
+  0.1–10 s; it eases (cosine in-out) from the brightness the step before reached, dark for the
+  first. The last step is fixed at 0 % with only its time to set, so every run ends dark. Add steps
+  (they go in before the fade out) or remove any but the last two. A graph above shows one run.
+  Default: 100 % in 1 s, back to 0 % in 1 s, the breath the pulse always had.
+- **Repeat** – how many times the steps play, 1–100 (default 15). The old "pulse for" window
+  carries over as the number of 2 s default breaths that filled it.
+- Saved as `pulse_steps` ("brightness@millis;…") and `pulse_repeat`, and always brought within the
+  limits above (`PulseSettings.normalized`).
 - **Battery saver** – off by default. On, a notification no longer starts the pulse by itself:
   the toy only looks at notifications on the first repaint of each minute (the clock update, from
   the loop's own minute timer or `EVENT_AOD`), and pulses then if one arrived since the last look
@@ -135,7 +141,7 @@ goes back to steady. The settings are shared by every toy.
 - `glyph/addon/NotificationPulse` – the ring: the round matrix's edge minus what the face
   occupies (`ToyLoop` works it out once per face, not per frame). Also `frame()`, which lays it
   over the face.
-- `glyph/addon/PulseWave` – the breathing curve and pulse timing. `MinuteCheck` there is battery
+- `glyph/addon/PulseWave` – the ring level at any point of a run of steps. `MinuteCheck` there is battery
   saver: the first call each minute is the look, and it says when the latest pulse started.
 - `glyph/addon/AddonPreferences` – the per-toy switch and `PulseSettings`, persisted.
 - `glyph/toy/ToyLoop` – animates the ring at 25 fps while a pulse runs on a toy it is on for.

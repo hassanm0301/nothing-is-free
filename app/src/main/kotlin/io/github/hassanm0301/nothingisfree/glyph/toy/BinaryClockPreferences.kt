@@ -3,6 +3,7 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,8 +19,8 @@ enum class BitStyle {
 }
 
 /**
- * Options for the binary clock toy. Brightness values are 0..255, the `DotMatrix` scale; the toy
- * rescales to the hardware's 0..4095.
+ * Options for the binary clock toy. Brightness values are 0..100 %; the face turns them into
+ * `DotMatrix` levels with `Brightness.level`.
  *
  * @property dotGap in [BitStyle.DOT], leave one dark LED between bits. Ignored for squares, which
  *   always touch: with gaps they no longer fit the round 13x13 matrix.
@@ -30,8 +31,8 @@ data class BinaryClockSettings(
     val style: BitStyle = BitStyle.SQUARE,
     val dotGap: Boolean = true,
     val showUnusedBits: Boolean = false,
-    val activeBrightness: Int = 255,
-    val inactiveBrightness: Int = 24,
+    val activeBrightness: Int = 100,
+    val inactiveBrightness: Int = 10,
 )
 
 /**
@@ -42,8 +43,12 @@ object BinaryClockPreferences {
     private const val KEY_STYLE = "style"
     private const val KEY_DOT_GAP = "dot_gap"
     private const val KEY_SHOW_UNUSED = "show_unused_bits"
-    private const val KEY_ACTIVE = "active_brightness"
-    private const val KEY_INACTIVE = "inactive_brightness"
+    private const val KEY_ACTIVE = "active_brightness_percent"
+    private const val KEY_INACTIVE = "inactive_brightness_percent"
+
+    /** Brightness saved on the old 0..255 scale, converted the first time these are read. */
+    private const val KEY_LEGACY_ACTIVE = "active_brightness"
+    private const val KEY_LEGACY_INACTIVE = "inactive_brightness"
 
     private var prefs: SharedPreferences? = null
     private val _settings = MutableStateFlow(BinaryClockSettings())
@@ -57,8 +62,8 @@ object BinaryClockPreferences {
             style = p.getString(KEY_STYLE, null)?.let { s -> BitStyle.entries.firstOrNull { it.name == s } } ?: d.style,
             dotGap = p.getBoolean(KEY_DOT_GAP, d.dotGap),
             showUnusedBits = p.getBoolean(KEY_SHOW_UNUSED, d.showUnusedBits),
-            activeBrightness = p.getInt(KEY_ACTIVE, d.activeBrightness).coerceIn(0, 255),
-            inactiveBrightness = p.getInt(KEY_INACTIVE, d.inactiveBrightness).coerceIn(0, 255),
+            activeBrightness = percent(p, KEY_ACTIVE, KEY_LEGACY_ACTIVE, d.activeBrightness),
+            inactiveBrightness = percent(p, KEY_INACTIVE, KEY_LEGACY_INACTIVE, d.inactiveBrightness),
         )
     }
 
@@ -68,8 +73,14 @@ object BinaryClockPreferences {
             putString(KEY_STYLE, s.style.name)
             putBoolean(KEY_DOT_GAP, s.dotGap)
             putBoolean(KEY_SHOW_UNUSED, s.showUnusedBits)
-            putInt(KEY_ACTIVE, s.activeBrightness.coerceIn(0, 255))
-            putInt(KEY_INACTIVE, s.inactiveBrightness.coerceIn(0, 255))
+            putInt(KEY_ACTIVE, s.activeBrightness.coerceIn(0, 100))
+            putInt(KEY_INACTIVE, s.inactiveBrightness.coerceIn(0, 100))
         }
+    }
+
+    private fun percent(p: SharedPreferences, key: String, legacyKey: String, default: Int): Int = when {
+        p.contains(key) -> p.getInt(key, default).coerceIn(0, 100)
+        p.contains(legacyKey) -> Brightness.percent(p.getInt(legacyKey, 0))
+        else -> default
     }
 }

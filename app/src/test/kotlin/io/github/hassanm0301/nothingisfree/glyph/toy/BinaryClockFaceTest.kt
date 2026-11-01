@@ -33,7 +33,7 @@ class BinaryClockFaceTest {
         bit: Int,
         size: Int = 13,
         active: Int = 255,
-        inactive: Int = 24,
+        inactive: Int = DIM,
         unused: Int = 0,
     ) = DotMatrix(size, size).apply {
         rows.forEachIndexed { row, line ->
@@ -94,9 +94,9 @@ class BinaryClockFaceTest {
         // Squares: origin 3, columns 2 wide; the hours-tens "2" bit is the third row (y 7..8).
         val twentyFour = face.render(LocalTime.of(9, 47), is24Hour = true, squares)
         val twelve = face.render(LocalTime.of(9, 47), is24Hour = false, squares)
-        assertEquals(squares.inactiveBrightness, twentyFour[3, 7])
+        assertEquals(DIM, twentyFour[3, 7])
         assertEquals(0, twelve[3, 7])
-        assertEquals(squares.inactiveBrightness, twelve[3, 9])
+        assertEquals(DIM, twelve[3, 9])
     }
 
     @Test
@@ -115,7 +115,7 @@ class BinaryClockFaceTest {
         assertEquals(square(3, 10, step = 2), gapped.lit())
         val packed = face.render(time, is24Hour = true, packedDots.copy(showUnusedBits = true))
         assertEquals(square(5, 9), packed.lit())
-        assertEquals(expected(bits2147, origin = 5, pitch = 1, bit = 1, unused = 24).cells(), packed.cells())
+        assertEquals(expected(bits2147, origin = 5, pitch = 1, bit = 1, unused = DIM).cells(), packed.cells())
     }
 
     @Test
@@ -126,23 +126,23 @@ class BinaryClockFaceTest {
             face.render(time, is24Hour = true, squares.copy(showUnusedBits = false)).cells(),
         )
         assertEquals(
-            expected(bits2147, origin = 3, pitch = 2, bit = 2, unused = 24).cells(),
+            expected(bits2147, origin = 3, pitch = 2, bit = 2, unused = DIM).cells(),
             face.render(time, is24Hour = true, squares.copy(showUnusedBits = true)).cells(),
         )
     }
 
     @Test
-    fun `brightness passes through and inactive 0 leaves clear bits dark`() {
+    fun `brightness percentages become matrix levels and inactive 0 leaves clear bits dark`() {
         val time = LocalTime.of(21, 47)
-        val custom = squares.copy(activeBrightness = 200, inactiveBrightness = 60)
+        val custom = squares.copy(activeBrightness = 80, inactiveBrightness = 25)
         assertEquals(
-            expected(bits2147, origin = 3, pitch = 2, bit = 2, active = 200, inactive = 60).cells(),
+            expected(bits2147, origin = 3, pitch = 2, bit = 2, active = 204, inactive = 64).cells(),
             face.render(time, is24Hour = true, custom).cells(),
         )
         val off = custom.copy(inactiveBrightness = 0, showUnusedBits = true)
         val frame = face.render(time, is24Hour = true, off)
         assertEquals(
-            expected(bits2147, origin = 3, pitch = 2, bit = 2, active = 200, inactive = 0).cells(),
+            expected(bits2147, origin = 3, pitch = 2, bit = 2, active = 204, inactive = 0).cells(),
             frame.cells(),
         )
         // Six set bits, four LEDs each, and nothing else.
@@ -183,5 +183,10 @@ class BinaryClockFaceTest {
                 if (v > 0) assertTrue("$settings: ($x,$y) is off the matrix", RoundMatrix.isLed(25, x, y))
             }
         }
+    }
+
+    private companion object {
+        /** The default inactive brightness, 10 %, as a matrix level. */
+        const val DIM = 26
     }
 }

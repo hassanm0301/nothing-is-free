@@ -19,33 +19,89 @@ import kotlinx.coroutines.flow.updateAndGet
 enum class AddonId(val title: String, val summary: String) {
     NOTIFICATION_PULSE(
         "Notification pulse",
-        "The outer ring pulses a few times after a notification",
+        "The outer ring pulses in a pattern you set after a notification",
     ),
 }
 
 /**
+ * One step of the notification pulse: ease from wherever the step before left off (dark, for the
+ * first) to [brightness] (0..100 %) over [durationMs].
+ */
+data class PulseStep(val brightness: Int, val durationMs: Long)
+
+/**
  * How the notification pulse looks and when it runs. One setting for every toy.
  *
- * @property riseMs how long each breath takes to go from dark to [maxBrightness]; it takes as long
- *   again to fade back, so a breath lasts twice this.
- * @property maxBrightness the peak of each breath, 1..255 on the `DotMatrix` scale.
- * @property count how many breaths ("pulses" in the UI) follow a notification.
+ * @property steps played in order, [repeat] times. Between 2 and [MAX_STEPS]; the last one always
+ *   fades back to 0 %, so each run ends dark (its brightness is ignored and kept at 0).
+ * @property repeat how many times the steps play after a notification.
  * @property batterySaver look for notifications once a minute, with the clock's own repaint,
  *   instead of waking for each one as it arrives (see [MinuteCheck]).
  * @property repeatWhileShowing with [batterySaver], pulse every minute while a notification is still
  *   in the shade, not only when a new one has arrived.
  */
 data class PulseSettings(
-    val riseMs: Long = 1_000,
-    val maxBrightness: Int = 255,
-    val count: Int = 15,
+    val steps: List<PulseStep> = DEFAULT_STEPS,
+    val repeat: Int = 15,
     val batterySaver: Boolean = false,
     val repeatWhileShowing: Boolean = false,
 ) {
-    val durationMs: Long get() = PulseWave.duration(riseMs, count)
+    /** One run through the steps. */
+    val cycleMs: Long get() = steps.sumOf { it.durationMs }
 
-    /** Ring brightness [elapsedMs] into a pulse. */
-    fun level(elapsedMs: Long): Int = PulseWave.level(elapsedMs, riseMs, maxBrightness)
+    /** The whole pulse: [repeat] runs. */
+    val durationMs: Long get() = cycleMs * repeat
+
+    /** Ring level (0..255) [elapsedMs] into a pulse. */
+    fun level(elapsedMs: Long): Int = PulseWave.level(steps, elapsedMs)
+
+    /**
+     * Brought within limits: 2 to [MAX_STEPS] steps with the last at 0 %, brightness 0..100,
+     * times rounded to [TIME_STEP_MS] between [MIN_STEP_MS] and [MAX_STEP_MS], and [repeat]
+     * between 1 and [MAX_REPEAT].
+     */
+    fun normalized(): PulseSettings {
+        val clean = steps.map { PulseStep(it.brightness.coerceIn(0, 100), roundTime(it.durationMs)) }
+        val end = clean.lastOrNull()?.copy(brightness = 0) ?: DEFAULT_STEPS.last()
+        val body = clean.dropLast(1).take(MAX_STEPS - 1).ifEmpty { listOf(DEFAULT_STEPS.first()) }
+        return copy(steps = body + end, repeat = repeat.coerceIn(1, MAX_REPEAT))
+    }
+
+    /** With step [index] changed by [transform]. */
+    fun withStep(index: Int, transform: (PulseStep) -> PulseStep): PulseSettings =
+        copy(steps = steps.mapIndexed { i, step -> if (i == index) transform(step) else step }).normalized()
+
+    /** With a new step before the final fade out, unless there are [MAX_STEPS] already. */
+    fun addStep(): PulseSettings =
+        if (steps.size >= MAX_STEPS) this else copy(steps = steps.dropLast(1) + NEW_STEP + steps.last()).normalized()
+
+    /** Without step [index]. The final fade out stays, and so does at least one step before it. */
+    fun removeStep(index: Int): PulseSettings =
+        if (index == steps.lastIndex || steps.size <= 2) this else copy(steps = steps.filterIndexed { i, _ -> i != index })
+
+    companion object {
+        const val MAX_STEPS = 8
+        const val MAX_REPEAT = 100
+        const val TIME_STEP_MS = 100L
+        const val MIN_STEP_MS = TIME_STEP_MS
+        const val MAX_STEP_MS = 10_000L
+
+        /** Up to full brightness in 1 s and back down in 1 s: the breath the pulse always had. */
+        val DEFAULT_STEPS = listOf(PulseStep(100, 1_000), PulseStep(0, 1_000))
+        private val NEW_STEP = PulseStep(100, 500)
+
+        private fun roundTime(ms: Long): Long =
+            ((ms + TIME_STEP_MS / 2) / TIME_STEP_MS * TIME_STEP_MS).coerceIn(MIN_STEP_MS, MAX_STEP_MS)
+
+        /** "100@1000;0@1000": brightness@millis for each step. */
+        fun encode(steps: List<PulseStep>): String = steps.joinToString(";") { "${it.brightness}@${it.durationMs}" }
+
+        /** The steps [encode] wrote, or null if [text] doesn't read as any. */
+        fun decode(text: String): List<PulseStep>? = text.split(';').mapNotNull { part ->
+            val (b, ms) = part.split('@').takeIf { it.size == 2 } ?: return@mapNotNull null
+            PulseStep(b.toIntOrNull() ?: return@mapNotNull null, ms.toLongOrNull() ?: return@mapNotNull null)
+        }.ifEmpty { null }
+    }
 }
 
 /**
@@ -53,22 +109,15 @@ data class PulseSettings(
  * `NothingIsFreeApp.onCreate`.
  */
 object AddonPreferences {
-    /** Choices offered in the UI for [PulseSettings.riseMs]. */
-    val riseChoices = listOf(500L, 1_000L, 1_500L, 2_000L, 3_000L)
-
-    /** Choices offered in the UI for [PulseSettings.count]. */
-    val countChoices = listOf(1, 3, 5, 10, 15, 30, 60)
-
     /** Where each addon starts out on: the pulse on the Digital clock, as before addons existed. */
     private val defaults = mapOf(AddonId.NOTIFICATION_PULSE to setOf(ToyId.DIGITAL_CLOCK))
 
-    private const val KEY_RISE = "pulse_rise_ms"
-    private const val KEY_MAX_BRIGHTNESS = "pulse_max_brightness"
-    private const val KEY_COUNT = "pulse_count"
+    private const val KEY_STEPS = "pulse_steps"
+    private const val KEY_REPEAT_COUNT = "pulse_repeat"
     private const val KEY_BATTERY_SAVER = "pulse_battery_saver"
-    private const val KEY_REPEAT = "pulse_repeat_while_showing"
+    private const val KEY_WHILE_SHOWING = "pulse_repeat_while_showing"
 
-    /** The old "pulse for" window in seconds, read once to pick the first [KEY_COUNT]. */
+    /** The old "pulse for" window in seconds, read once to pick the first [KEY_REPEAT_COUNT]. */
     private const val KEY_LEGACY_WINDOW = "pulse_window_seconds"
     private const val LEGACY_PERIOD_MS = 2_000L
 
@@ -94,29 +143,28 @@ object AddonPreferences {
         }
         val d = PulseSettings()
         _pulse.value = PulseSettings(
-            riseMs = p.getLong(KEY_RISE, d.riseMs).coerceIn(riseChoices.first(), riseChoices.last()),
-            maxBrightness = p.getInt(KEY_MAX_BRIGHTNESS, d.maxBrightness).coerceIn(1, 255),
-            count = if (p.contains(KEY_COUNT)) {
-                p.getInt(KEY_COUNT, d.count).coerceAtLeast(1)
+            steps = p.getString(KEY_STEPS, null)?.let(PulseSettings::decode) ?: d.steps,
+            repeat = if (p.contains(KEY_REPEAT_COUNT)) {
+                p.getInt(KEY_REPEAT_COUNT, d.repeat)
             } else {
-                legacyCount(context, p) ?: d.count
+                legacyRepeat(context, p) ?: d.repeat
             },
             batterySaver = p.getBoolean(KEY_BATTERY_SAVER, d.batterySaver),
-            repeatWhileShowing = p.getBoolean(KEY_REPEAT, d.repeatWhileShowing),
-        )
+            repeatWhileShowing = p.getBoolean(KEY_WHILE_SHOWING, d.repeatWhileShowing),
+        ).normalized()
     }
 
     /**
-     * Breaths that fill the old "pulse for" window, which ran 2 s breaths for that many seconds
-     * rounded up, capped at the largest choice. It was set here, or before addons on the Pulse
-     * clock toy (that file is never deleted). Null if neither was ever set.
+     * Runs of the default steps (one 2 s breath) that fill the old "pulse for" window, which
+     * breathed for that many seconds rounded up to whole breaths. It was set here, or before addons
+     * on the Pulse clock toy (that file is never deleted). Null if neither was ever set.
      */
-    private fun legacyCount(context: Context, p: SharedPreferences): Int? {
+    private fun legacyRepeat(context: Context, p: SharedPreferences): Int? {
         val legacy = context.getSharedPreferences("glyph_clock_toy", Context.MODE_PRIVATE)
         val seconds = listOf(p, legacy).firstOrNull { it.contains(KEY_LEGACY_WINDOW) }
             ?.getInt(KEY_LEGACY_WINDOW, 0) ?: return null
         val count = (seconds * 1_000L + LEGACY_PERIOD_MS - 1) / LEGACY_PERIOD_MS
-        return count.toInt().coerceIn(1, countChoices.last())
+        return count.toInt()
     }
 
     fun isEnabled(addon: AddonId, toy: ToyId): Boolean = toy in _enabled.value[addon].orEmpty()
@@ -134,13 +182,12 @@ object AddonPreferences {
     }
 
     fun updatePulse(transform: (PulseSettings) -> PulseSettings) {
-        val s = _pulse.updateAndGet(transform)
+        val s = _pulse.updateAndGet { transform(it).normalized() }
         prefs?.edit {
-            putLong(KEY_RISE, s.riseMs)
-            putInt(KEY_MAX_BRIGHTNESS, s.maxBrightness.coerceIn(1, 255))
-            putInt(KEY_COUNT, s.count)
+            putString(KEY_STEPS, PulseSettings.encode(s.steps))
+            putInt(KEY_REPEAT_COUNT, s.repeat)
             putBoolean(KEY_BATTERY_SAVER, s.batterySaver)
-            putBoolean(KEY_REPEAT, s.repeatWhileShowing)
+            putBoolean(KEY_WHILE_SHOWING, s.repeatWhileShowing)
         }
     }
 }

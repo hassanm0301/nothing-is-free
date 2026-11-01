@@ -1,5 +1,6 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
+import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import java.time.LocalTime
 
@@ -23,16 +24,17 @@ class BinaryClockFace(val size: Int) {
         val bitsPerDigit = intArrayOf(if (is24Hour) 2 else 1, 4, 3, 4)
 
         val (bit, pitch, origin) = layout(settings)
+        val active = Brightness.level(settings.activeBrightness)
+        val inactive = Brightness.level(settings.inactiveBrightness)
 
         return DotMatrix(size, size).apply {
             digits.forEachIndexed { col, value ->
                 for (row in 0 until ROWS) {
                     val weight = ROWS - 1 - row
                     val level = when {
-                        weight >= bitsPerDigit[col] ->
-                            if (settings.showUnusedBits) settings.inactiveBrightness else 0
-                        (value shr weight) and 1 == 1 -> settings.activeBrightness
-                        else -> settings.inactiveBrightness
+                        weight >= bitsPerDigit[col] -> if (settings.showUnusedBits) inactive else 0
+                        (value shr weight) and 1 == 1 -> active
+                        else -> inactive
                     }
                     if (level == 0) continue
                     val x0 = origin + col * pitch
@@ -46,6 +48,8 @@ class BinaryClockFace(val size: Int) {
     /** Whether ([x], [y]) is inside the bit grid for [settings]. */
     fun occupies(x: Int, y: Int, settings: BinaryClockSettings): Boolean {
         val (bit, pitch, origin) = layout(settings)
+        val active = Brightness.level(settings.activeBrightness)
+        val inactive = Brightness.level(settings.inactiveBrightness)
         val end = origin + (ROWS - 1) * pitch + bit
         return x in origin until end && y in origin until end
     }
