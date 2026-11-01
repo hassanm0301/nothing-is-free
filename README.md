@@ -38,24 +38,40 @@ Android only accepts an update signed with the **same key** as the installed cop
 release is signed with one release key (see below). Debug builds use per-machine debug keys and
 cannot update a release install; uninstall first.
 
+## Branches
+- **`develop`** – every change lands here first, from a feature branch (branch off `develop`,
+  merge back into it). Each merge publishes a **preview**: it bumps `versionCode` and the preview
+  number in `versionName` (`0.7.0-beta.1`, then `0.7.0-beta.2`, …), and pushing `develop` releases
+  that as a GitHub pre-release. So `develop` always has a preview release.
+- **`main`** – full releases only. It only takes merges from `develop`.
+
 ## Releases
-1. Bump `versionCode` and `versionName` in `app/build.gradle.kts` and merge it into `main`.
-2. Start the release, either way:
+### Previews, from `develop`
+1. In the merge into `develop`, bump `versionCode` and the preview number in `versionName` in
+   `app/build.gradle.kts`. After a full release, start the next one's previews at `-beta.1`
+   (e.g. `0.8.0-beta.1` after `0.7.0`).
+2. Push `develop`. `.github/workflows/release.yml` publishes it as `v0.7.0-beta.1`, a
+   pre-release. If that tag is taken (the bump was forgotten), the run fails and says so.
+
+Any version with a `-` is published as a GitHub pre-release. The app only offers pre-releases
+with **Settings › Updates › Beta updates** on; then it offers the highest version among recent
+releases, so `0.7.0-beta.2` follows `0.7.0-beta.1` and `0.7.0` follows both. Turning beta off
+keeps the installed beta until a newer full release is out.
+
+### Full releases, on `main`
+1. On `develop`, set the full `versionName` (`0.7.0-beta.3` → `0.7.0`) and bump `versionCode`.
+   Pushing `develop` with a full version publishes nothing; the run leaves a note instead.
+2. Merge `develop` into `main`.
+3. Start the release, either way:
    - **Run workflow**: Actions › Release › Run workflow, on `main`. It tags the commit it builds
-     `v` + `versionName` (e.g. `v0.2.0`) and stops if that tag already exists. Claude Code cloud
+     `v` + `versionName` (e.g. `v0.7.0`) and stops if that tag already exists. Claude Code cloud
      sessions cannot push tags, so they release this way.
-   - **Push a tag** matching `versionName`: `git tag v0.2.0 && git push origin v0.2.0`.
+   - **Push a tag** matching `versionName`: `git tag v0.7.0 && git push origin v0.7.0`.
+4. Back on `develop`, the next merge starts the next previews (`0.8.0-beta.1`).
 
-`.github/workflows/release.yml` runs the tests, builds a signed `assembleRelease` and publishes
-it as `nothing-is-free-v0.2.0.apk` on the release.
-
-### Beta releases
-For a preview, use a pre-release `versionName` such as `0.6.0-beta.1` (still bump
-`versionCode`), which releases as `v0.6.0-beta.1`. Any tag with a `-` is published as a GitHub
-pre-release.
-The app only offers pre-releases with **Settings › Updates › Beta updates** on; then it offers
-the highest version among recent releases, so `0.6.0-beta.2` follows `0.6.0-beta.1` and `0.6.0`
-follows both. Turning beta off keeps the installed beta until a newer full release is out.
+Either way the workflow runs the tests, builds a signed `assembleRelease` and publishes it as
+`nothing-is-free-v0.7.0.apk` on the release. **Run workflow** on `develop` works too, for a
+preview version only.
 
 ### Signing key
 The release key is `~/.android/nothing-is-free-release.jks` (alias `nothing-is-free`). Its
