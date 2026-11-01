@@ -1,11 +1,13 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
+import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
+import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -126,7 +128,7 @@ class ToyLoopTest {
         assertEquals(faces.value.frame(time, true).cells(), nextFrame().cells())
         assertNull(frames.tryReceive().getOrNull())
 
-        faces.value = binary.with(BinaryClockSettings(style = BitStyle.DOT, activeBrightness = 128))
+        faces.value = binary.with(BinaryClockSettings(style = BitStyle.DOT, activeBrightness = 50))
         assertEquals(faces.value.frame(time, true).cells(), nextFrame().cells())
         assertNull(frames.tryReceive().getOrNull())
         job.cancel()
@@ -165,7 +167,7 @@ class ToyLoopTest {
     @Test
     fun `the pulse ends after its number of breaths`() = runBlocking {
         val alertAt = clock.now
-        val settings = PulseSettings(count = 3)
+        val settings = PulseSettings(repeat = 3)
         val duration = settings.durationMs
         val job = runLoop(
             pulseOn = MutableStateFlow(true),
@@ -173,8 +175,8 @@ class ToyLoopTest {
             pulse = MutableStateFlow(settings),
         )
 
-        // Three 2 s breaths run to 6 s; the last one peaks a rise time before that.
-        clock.now = alertAt + duration - settings.riseMs
+        // Three 2 s breaths run to 6 s; the last one peaks a second before that.
+        clock.now = alertAt + duration - RISE_MS
         awaitRing(255)
         assertEquals(255, nextRing())
 
@@ -223,8 +225,8 @@ class ToyLoopTest {
     }
 
     @Test
-    fun `rise time and max brightness shape the breath`() = runBlocking {
-        val settings = PulseSettings(riseMs = 2_000, maxBrightness = 100)
+    fun `the steps shape the pulse`() = runBlocking {
+        val settings = PulseSettings(steps = listOf(PulseStep(40, 2_000), PulseStep(0, 2_000)))
         val alertAt = clock.now
         val job = runLoop(
             pulseOn = MutableStateFlow(true),
@@ -235,10 +237,10 @@ class ToyLoopTest {
         assertEquals(0, nextRing())
         clock.now = alertAt + 1_000
         awaitRing(settings.level(1_000))
-        assertTrue(settings.level(1_000) in 1 until 100)
+        assertTrue(settings.level(1_000) in 1 until Brightness.level(40))
         clock.now = alertAt + 2_000
-        awaitRing(100)
-        assertEquals(100, nextRing())
+        awaitRing(Brightness.level(40))
+        assertEquals(Brightness.level(40), nextRing())
         job.cancel()
     }
 
@@ -305,7 +307,7 @@ class ToyLoopTest {
         val job = runLoop(
             pulseOn = MutableStateFlow(true),
             alertAt = MutableStateFlow(start - 10 * 60_000),
-            pulse = MutableStateFlow(PulseSettings(count = 5, batterySaver = true, repeatWhileShowing = true)),
+            pulse = MutableStateFlow(PulseSettings(repeat = 5, batterySaver = true, repeatWhileShowing = true)),
             showing = showing,
         )
         // The first look is straight away, and the old notification is still in the shade.
@@ -365,12 +367,13 @@ class ToyLoopTest {
         val job = runLoop(loop = batteryLoop, batteryOn = batteryOn, battery = battery)
         assertEquals(listOf(255, 255, 255, 0, 0), nextFrame().bottomRow())
 
-        battery.value = battery.value.copy(brightness = 40, emptyBrightness = 5)
-        assertEquals(listOf(40, 40, 40, 5, 5), nextFrame().bottomRow())
+        // 20 % and 2 % as matrix levels.
+        battery.value = battery.value.copy(brightness = 20, emptyBrightness = 2)
+        assertEquals(listOf(51, 51, 51, 5, 5), nextFrame().bottomRow())
 
         battery.value = battery.value.copy(edge = BatteryEdge.TOP)
         val onTop = nextFrame()
-        assertEquals(listOf(40, 40, 40, 5, 5), (4..8).map { onTop[it, 0] })
+        assertEquals(listOf(51, 51, 51, 5, 5), (4..8).map { onTop[it, 0] })
         assertEquals(listOf(0, 0, 0, 0, 0), onTop.bottomRow())
 
         batteryOn.value = false
@@ -386,7 +389,7 @@ class ToyLoopTest {
         val job = runLoop(
             loop = batteryLoop,
             // Long enough to run past the next minute.
-            pulse = MutableStateFlow(PulseSettings(count = 60)),
+            pulse = MutableStateFlow(PulseSettings(repeat = 60)),
             pulseOn = MutableStateFlow(true),
             alertAt = MutableStateFlow(clock.now - RISE_MS),
             batteryOn = MutableStateFlow(true),
@@ -418,7 +421,7 @@ class ToyLoopTest {
         /** Comfortably more than the loop's 40 ms frame interval. */
         const val QUIET_MS = 200L
 
-        /** The default rise time: one in, a breath peaks. */
+        /** The default breath's first step: one in, it peaks. */
         const val RISE_MS = 1_000L
     }
 }

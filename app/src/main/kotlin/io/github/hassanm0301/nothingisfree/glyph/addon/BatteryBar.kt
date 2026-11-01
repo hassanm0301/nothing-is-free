@@ -1,5 +1,6 @@
 package io.github.hassanm0301.nothingisfree.glyph.addon
 
+import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 
@@ -44,9 +45,9 @@ object BatteryBar {
     /** Draw [gauge] on [frame] over [bar], the cells from [cells]: lit dots, then the used-up ones. */
     fun draw(frame: DotMatrix, bar: List<Pair<Int, Int>>, gauge: BatteryGauge) {
         val lit = lit(gauge.percent, bar.size)
-        bar.forEachIndexed { i, (x, y) ->
-            frame[x, y] = if (i < lit) gauge.settings.brightness else gauge.settings.emptyBrightness
-        }
+        val on = Brightness.level(gauge.settings.brightness)
+        val off = Brightness.level(gauge.settings.emptyBrightness)
+        bar.forEachIndexed { i, (x, y) -> frame[x, y] = if (i < lit) on else off }
     }
 }
 

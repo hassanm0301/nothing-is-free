@@ -59,10 +59,10 @@ class BatteryBarTest {
 
     @Test
     fun `draws the charge, then the used-up dots, in fill order`() {
-        val settings = BatterySettings(edge = BatteryEdge.TOP, drain = BatteryDrain.LEFT_TO_RIGHT, brightness = 200, emptyBrightness = 10)
+        val settings = BatterySettings(edge = BatteryEdge.TOP, drain = BatteryDrain.LEFT_TO_RIGHT, brightness = 80, emptyBrightness = 4)
         val frame = digital.frame(LocalTime.of(10, 10), true, battery = BatteryGauge(settings, 50))
-        // Draining left to right, the right-hand three are what is left.
-        assertEquals(listOf(10, 10, 200, 200, 200), (4..8).map { frame[it, 0] })
+        // Draining left to right, the right-hand three are what is left. 80 % and 4 % as matrix levels.
+        assertEquals(listOf(10, 10, 204, 204, 204), (4..8).map { frame[it, 0] })
     }
 
     @Test

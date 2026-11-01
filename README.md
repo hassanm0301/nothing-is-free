@@ -7,8 +7,8 @@ Three tabs:
     adjustable active/inactive brightness). Each opens a settings page with a live matrix and a
     **Preview** sheet: scrub the time of day and simulate a notification.
   - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
-    the outer ring pulses after a notification, with its rise time, max brightness and number of
-    pulses adjustable, and a battery saver that only checks once a minute, with the clock.
+    the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of
+    times after a notification, with a battery saver that only checks once a minute, with the clock.
     **Battery level**: five dots on the top, bottom, left or right edge show the charge; top and
     bottom can drain right to left or left to right.
 - **Widgets** – previews of the home-screen widgets to come.

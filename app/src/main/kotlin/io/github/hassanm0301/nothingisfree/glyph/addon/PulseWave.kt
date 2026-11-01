@@ -1,26 +1,33 @@
 package io.github.hassanm0301.nothingisfree.glyph.addon
 
+import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.roundToInt
 
-/** The breathing curve for the notification ring. */
+/** The notification ring's brightness over time. */
 object PulseWave {
 
     /**
-     * Ring brightness (0..[max]) [elapsedMs] into a pulse whose breaths take [riseMs] to go from
-     * dark to [max] and the same again back to dark. Squared so the fade looks even on the LEDs
-     * rather than lingering bright.
+     * Ring level (0..255) [elapsedMs] into a pulse that plays [steps] over and over. Each run
+     * starts dark; each step eases from where the one before left off to its own brightness over
+     * its time, and the last one always goes back to 0, so every run ends dark.
      */
-    fun level(elapsedMs: Long, riseMs: Long, max: Int): Int {
-        val period = 2 * riseMs
-        val phase = (elapsedMs % period).toDouble() / period
-        val x = (1 - cos(2 * PI * phase)) / 2
-        return (x * x * max).roundToInt()
+    fun level(steps: List<PulseStep>, elapsedMs: Long): Int {
+        val cycle = steps.sumOf { it.durationMs }
+        if (cycle <= 0 || elapsedMs < 0) return 0
+        var t = elapsedMs % cycle
+        var from = 0.0
+        steps.forEachIndexed { i, step ->
+            val to = if (i == steps.lastIndex) 0.0 else step.brightness.toDouble()
+            if (t < step.durationMs) {
+                val eased = (1 - cos(PI * t / step.durationMs)) / 2
+                return Brightness.level(from + (to - from) * eased)
+            }
+            t -= step.durationMs
+            from = to
+        }
+        return 0
     }
-
-    /** How long [count] breaths of [riseMs] up and [riseMs] down take. */
-    fun duration(riseMs: Long, count: Int): Long = 2 * riseMs * count
 
     /** How far into a pulse started at [startAt] and lasting [durationMs] we are at [now], or null if none is running. */
     fun elapsed(startAt: Long?, durationMs: Long, now: Long): Long? =
