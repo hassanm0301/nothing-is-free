@@ -17,6 +17,8 @@ import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
+import io.github.hassanm0301.nothingisfree.volume.PreciseVolumePreferences
+import io.github.hassanm0301.nothingisfree.volume.VolumeFormat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -72,6 +74,11 @@ class AppViewModel : ViewModel() {
 
     fun updateBinaryClock(transform: (BinaryClockSettings) -> BinaryClockSettings) =
         BinaryClockPreferences.update(transform)
+
+    /** How Precise volume writes the level beside the volume bar. */
+    val volumeFormat: StateFlow<VolumeFormat> = PreciseVolumePreferences.format
+
+    fun setVolumeFormat(format: VolumeFormat) = PreciseVolumePreferences.setFormat(format)
 
     /** Self-update from GitHub releases; checked once each time the view model is created. */
     val update: StateFlow<AppUpdater.State> = AppUpdater.state

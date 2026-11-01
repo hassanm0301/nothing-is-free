@@ -6,6 +6,7 @@ import io.github.hassanm0301.nothingisfree.glyph.GlyphController
 import io.github.hassanm0301.nothingisfree.glyph.GlyphModule
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
+import io.github.hassanm0301.nothingisfree.volume.PreciseVolumePreferences
 
 class NothingIsFreeApp : Application() {
 
@@ -18,6 +19,7 @@ class NothingIsFreeApp : Application() {
         AddonPreferences.init(this)
         BinaryClockPreferences.init(this)
         UpdatePreferences.init(this)
+        PreciseVolumePreferences.init(this)
     }
 
     companion object {

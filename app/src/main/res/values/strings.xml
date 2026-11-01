@@ -5,4 +5,7 @@
     <string name="binary_clock_name">Binary clock</string>
     <string name="binary_clock_summary">Hours and minutes in binary-coded decimal</string>
     <string name="notification_listener_label">Glyph notification pulse</string>
+    <string name="precise_volume_name">Precise volume</string>
+    <string name="precise_volume_summary">Shows the volume level beside the volume bar</string>
+    <string name="precise_volume_description">Shows the volume level as text beside the volume bar while you change the volume.\n\nTo find the volume bar it looks at system windows only, and only while the volume is changing. It doesn\'t look at other apps, and it stores and sends nothing.</string>
 </resources>
