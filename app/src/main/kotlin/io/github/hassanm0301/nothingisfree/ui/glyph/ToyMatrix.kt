@@ -9,13 +9,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrixCanvas
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonLayout
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.MinuteCheck
-import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
+import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
+import io.github.hassanm0301.nothingisfree.ui.AppViewModel
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -25,16 +30,33 @@ const val PREVIEW_SIZE = 13
 
 /**
  * A toy's matrix as the phone shows it: [face] at [time] with the notification pulse at
- * [pulseLevel], drawn through the same `frame()` the toy services use.
+ * [pulseLevel] and the [battery] level (null = addon off), drawn through the same `frame()` the
+ * toy services use.
  */
 @Composable
-fun ToyMatrix(face: ToyFace, time: LocalTime, pulseLevel: Int, modifier: Modifier = Modifier) {
+fun ToyMatrix(
+    face: ToyFace,
+    time: LocalTime,
+    pulseLevel: Int,
+    modifier: Modifier = Modifier,
+    battery: BatteryGauge? = null,
+) {
     val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
-    val ring = remember(face) { NotificationPulse.ring(face) }
-    val frame = remember(face, time.hour, time.minute, is24Hour, pulseLevel) {
-        face.frame(time, is24Hour, pulseLevel, ring)
+    val layout = remember(face, battery?.settings) { AddonLayout(face, battery?.settings) }
+    val frame = remember(face, time.hour, time.minute, is24Hour, pulseLevel, battery, layout) {
+        face.frame(time, is24Hour, pulseLevel, battery, layout)
     }
     DotMatrixCanvas(frame, modifier, isDot = face::isLed)
+}
+
+/** The battery level addon on [toy] at the phone's level, or null while it is off for the toy. */
+@Composable
+fun batteryGauge(viewModel: AppViewModel, toy: ToyId): BatteryGauge? {
+    val addons by viewModel.addons.collectAsStateWithLifecycle()
+    val settings by viewModel.battery.collectAsStateWithLifecycle()
+    val percent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+    if (toy !in addons[AddonId.BATTERY_LEVEL].orEmpty()) return null
+    return percent?.let { BatteryGauge(settings, it) }
 }
 
 /**

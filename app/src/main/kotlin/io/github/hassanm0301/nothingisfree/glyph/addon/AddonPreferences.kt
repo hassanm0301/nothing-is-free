@@ -3,6 +3,7 @@ package io.github.hassanm0301.nothingisfree.glyph.addon
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,10 @@ enum class AddonId(val title: String, val summary: String) {
     NOTIFICATION_PULSE(
         "Notification pulse",
         "The outer ring pulses in a pattern you set after a notification",
+    ),
+    BATTERY_LEVEL(
+        "Battery level",
+        "Five dots along one edge show how much charge is left",
     ),
 }
 
@@ -104,18 +109,64 @@ data class PulseSettings(
     }
 }
 
+/** The edge of the matrix the battery bar sits on: its outermost line of LEDs on that side. */
+enum class BatteryEdge(val label: String) {
+    TOP("Top"),
+    BOTTOM("Bottom"),
+    LEFT("Left"),
+    RIGHT("Right"),
+    ;
+
+    /** Whether the bar runs across the matrix (top or bottom) rather than up it. */
+    val horizontal: Boolean get() = this == TOP || this == BOTTOM
+}
+
+/**
+ * Which way a horizontal battery bar empties. [RIGHT_TO_LEFT]: the right-hand dot goes out first
+ * and the left-hand one last. Vertical bars always empty from the top down.
+ */
+enum class BatteryDrain(val label: String) {
+    RIGHT_TO_LEFT("Right to left"),
+    LEFT_TO_RIGHT("Left to right"),
+}
+
+/**
+ * How the battery level addon looks. One setting for every toy. Brightness values are 0..100 %.
+ *
+ * @property drain which way the bar empties when [edge] is the top or bottom; ignored on the sides.
+ * @property brightness the dots still holding charge.
+ * @property emptyBrightness the dots already used up; 0 leaves them dark, so only the charge shows.
+ */
+data class BatterySettings(
+    val edge: BatteryEdge = BatteryEdge.TOP,
+    val drain: BatteryDrain = BatteryDrain.RIGHT_TO_LEFT,
+    val brightness: Int = 100,
+    val emptyBrightness: Int = 10,
+)
+
 /**
  * Addon settings, shared by the app UI and the toy services (same process). [init] runs from
  * `NothingIsFreeApp.onCreate`.
  */
 object AddonPreferences {
-    /** Where each addon starts out on: the pulse on the Digital clock, as before addons existed. */
+    /**
+     * Where each addon starts out on: the pulse on the Digital clock, as before addons existed.
+     * Others start off everywhere.
+     */
     private val defaults = mapOf(AddonId.NOTIFICATION_PULSE to setOf(ToyId.DIGITAL_CLOCK))
 
     private const val KEY_STEPS = "pulse_steps"
     private const val KEY_REPEAT_COUNT = "pulse_repeat"
     private const val KEY_BATTERY_SAVER = "pulse_battery_saver"
     private const val KEY_WHILE_SHOWING = "pulse_repeat_while_showing"
+    private const val KEY_BATTERY_EDGE = "battery_edge"
+    private const val KEY_BATTERY_DRAIN = "battery_drain"
+    private const val KEY_BATTERY_BRIGHTNESS = "battery_brightness_percent"
+    private const val KEY_BATTERY_EMPTY_BRIGHTNESS = "battery_empty_brightness_percent"
+
+    /** Battery brightness saved on the old 0..255 scale, converted the first time it is read. */
+    private const val KEY_LEGACY_BATTERY_BRIGHTNESS = "battery_brightness"
+    private const val KEY_LEGACY_BATTERY_EMPTY_BRIGHTNESS = "battery_empty_brightness"
 
     /** The old "pulse for" window in seconds, read once to pick the first [KEY_REPEAT_COUNT]. */
     private const val KEY_LEGACY_WINDOW = "pulse_window_seconds"
@@ -126,12 +177,16 @@ object AddonPreferences {
     private var prefs: SharedPreferences? = null
     private val _enabled = MutableStateFlow(defaults)
     private val _pulse = MutableStateFlow(PulseSettings())
+    private val _battery = MutableStateFlow(BatterySettings())
 
     /** For each addon, the toys it is switched on for. */
     val enabled: StateFlow<Map<AddonId, Set<ToyId>>> = _enabled.asStateFlow()
 
     /** The notification pulse's settings. */
     val pulse: StateFlow<PulseSettings> = _pulse.asStateFlow()
+
+    /** The battery level addon's settings. */
+    val battery: StateFlow<BatterySettings> = _battery.asStateFlow()
 
     fun init(context: Context) {
         val p = context.getSharedPreferences("glyph_addons", Context.MODE_PRIVATE)
@@ -152,6 +207,16 @@ object AddonPreferences {
             batterySaver = p.getBoolean(KEY_BATTERY_SAVER, d.batterySaver),
             repeatWhileShowing = p.getBoolean(KEY_WHILE_SHOWING, d.repeatWhileShowing),
         ).normalized()
+        val b = BatterySettings()
+        _battery.value = BatterySettings(
+            edge = p.getString(KEY_BATTERY_EDGE, null)
+                ?.let { s -> BatteryEdge.entries.firstOrNull { it.name == s } } ?: b.edge,
+            drain = p.getString(KEY_BATTERY_DRAIN, null)
+                ?.let { s -> BatteryDrain.entries.firstOrNull { it.name == s } } ?: b.drain,
+            brightness = percent(p, KEY_BATTERY_BRIGHTNESS, KEY_LEGACY_BATTERY_BRIGHTNESS, b.brightness)
+                .coerceAtLeast(1),
+            emptyBrightness = percent(p, KEY_BATTERY_EMPTY_BRIGHTNESS, KEY_LEGACY_BATTERY_EMPTY_BRIGHTNESS, b.emptyBrightness),
+        )
     }
 
     /**
@@ -189,5 +254,22 @@ object AddonPreferences {
             putBoolean(KEY_BATTERY_SAVER, s.batterySaver)
             putBoolean(KEY_WHILE_SHOWING, s.repeatWhileShowing)
         }
+    }
+
+    fun updateBattery(transform: (BatterySettings) -> BatterySettings) {
+        val s = _battery.updateAndGet(transform)
+        prefs?.edit {
+            putString(KEY_BATTERY_EDGE, s.edge.name)
+            putString(KEY_BATTERY_DRAIN, s.drain.name)
+            putInt(KEY_BATTERY_BRIGHTNESS, s.brightness.coerceIn(1, 100))
+            putInt(KEY_BATTERY_EMPTY_BRIGHTNESS, s.emptyBrightness.coerceIn(0, 100))
+        }
+    }
+
+    /** A 0..100 % setting at [key], or converted from the old 0..255 one at [legacyKey]. */
+    private fun percent(p: SharedPreferences, key: String, legacyKey: String, default: Int): Int = when {
+        p.contains(key) -> p.getInt(key, default).coerceIn(0, 100)
+        p.contains(legacyKey) -> Brightness.percent(p.getInt(legacyKey, 0))
+        else -> default
     }
 }

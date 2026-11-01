@@ -22,12 +22,14 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
     toy's face with its current options. Persisted by name (addon settings), so don't rename
     entries.
   - `ToyLoop` – the one SDK-free loop every toy runs: a frame each minute and on `refresh()`, one
-    at once when the face, the addon switch, the last alert (unless on battery saver) or the pulse
+    at once when the face, an addon switch, the last alert (unless on battery saver) or an addon's
     settings change, and 25 fps while a notification pulse is running. Draws through `frame()` (see
-    [addons](#addons)), and says how long a pulse has left so the service can keep the CPU up.
+    [addons](#addons)), says how long a pulse has left so the service can keep the CPU up, and
+    reads the battery level for the battery addon on repaints that aren't pulse frames.
   - `GlyphToyService` – the base service. Binds `GlyphMatrixManager` and registers the device,
     runs `ToyLoop`, pushes frames with `setMatrixFrame` (dropped frames are logged), forwards
-    `EVENT_AOD` to `refresh()`, and holds the pulse wake lock as `ToyLoop` asks. Each toy only
+    `EVENT_AOD` to `refresh()`, holds the pulse wake lock as `ToyLoop` asks, and gives it
+    `BatteryLevel.read` for the battery level. Each toy only
     gives its `toyId` and `faces(size)`, a flow that emits again when the toy's options change.
   - `MatrixArbiter` – shares the SDK's singleton manager between toys: `init` for the first bound
     toy, `turnOff` + `unInit` after the last, and only the most recently bound toy draws. The
@@ -35,13 +37,17 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
     toy stayed blank and the old one's `unInit` tore down the shared connection.
   - `RoundMatrix` – the round LED mask every face draws inside.
 - `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on per toy:
-  - `AddonPreferences` – which toys each addon is on for, and the pulse settings
-    (`PulseSettings`: steps, repeat, battery saver), persisted.
-  - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, …)`,
-    the full frame a toy shows: face plus pulse. The toy services and the in-app previews both draw
-    through it, so a preview is exactly what the matrix shows.
+  - `AddonPreferences` – which toys each addon is on for, and the pulse and battery settings
+    (`PulseSettings`: steps, repeat, battery saver; `BatterySettings`), persisted.
+  - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, battery, …)`,
+    the full frame a toy shows: face plus addons. The toy services and the in-app previews both
+    draw through it, so a preview is exactly what the matrix shows.
   - `PulseWave` – the ring level over a run of `PulseStep`s; `MinuteCheck`, battery saver's
     once-a-minute look at the notifications.
+  - `BatteryBar` – the battery level's dots; `AddonLayout`, where each addon draws on a face (the
+    bar, and the pulse ring around it), worked out once per face rather than per frame.
+- `core/battery/BatteryLevel` – the phone's charge from the sticky `ACTION_BATTERY_CHANGED`
+  broadcast: `read()` for the toys, `changes()` for the app's screens.
 
 ## SDK facts (read from the 2.0 AAR)
 - `Glyph.DEVICE_*` are `Build.MODEL` strings, not codenames: Phone (4a) Pro is `A069P`
@@ -157,6 +163,36 @@ time goes in steps of 0.1 s.
 2. Open the toy you use (Glyph > Toys), switch the pulse on under **Addons**, and pick that toy
    on the phone (see [toys](#toys)).
 3. Flip the phone. **Test on phone** starts a pulse without waiting for a notification.
+
+### Battery level
+A line of five dots on one edge of the matrix shows the phone's charge. Each dot is 20% and stays
+lit until its share is used up: 81–100% lights all five, 1–20% one. The settings are shared by
+every toy; there is no permission to grant.
+
+- **Per-toy switch** – on a toy's page. Off for every toy to begin with.
+- **Edge** – top (default), bottom, left or right: the outermost line of LEDs on that side. On the
+  13x13 matrix that line is exactly five LEDs (e.g. the top row is x 4..8); on a 25x25, the bar
+  takes the middle five of it. No face draws on the edge, so the bar never covers one.
+- **Drains** – top and bottom only: **right to left** (default; the right-hand dot goes out first,
+  the left-hand one last) or **left to right**. The sides always drain from the top down, like a
+  battery standing upright.
+- **Charge / used-up brightness** – 1..100 % (default 100 %) for the dots still holding charge,
+  and 0..100 % (default 10 %) for the used-up ones; 0 % leaves them dark so only the charge shows.
+  Values saved on the old 0..255 scale are converted once.
+- **With the notification pulse** – the pulse ring leaves out the bar's dots (`AddonLayout`), so
+  a pulse runs around the bar and never hides the level.
+- **When it updates** – the toy reads the level (the last sticky battery broadcast, no receiver)
+  on each repaint that isn't a pulse frame: the minute's clock update, `EVENT_AOD`, or a settings
+  change. So it never wakes the phone for the battery, at the cost of showing a new level up to a
+  minute late. During a long pulse it reads once more when the minute changes, not per frame.
+- In the app, the addon's page has a preview with a level slider (it only moves the preview), and
+  the toy pages and the preview sheet show the bar at the phone's real level.
+
+- `glyph/addon/BatteryBar` – which LEDs make the bar and in what order they light (`cells`), how
+  many are lit (`lit`), and `draw`.
+- `glyph/addon/AddonLayout` (in `BatteryBar.kt`) – the bar and the pulse ring for a face.
+- `core/battery/BatteryLevel` – `read()` for the toys; `changes()`, a receiver-backed flow, for
+  the app's screens while they show.
 
 ## Next steps
 - `GlyphMatrixController : GlyphController` for in-app frames (`setAppMatrixFrame`, needs

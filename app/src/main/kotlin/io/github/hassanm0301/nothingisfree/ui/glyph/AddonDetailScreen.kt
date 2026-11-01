@@ -1,11 +1,15 @@
 package io.github.hassanm0301.nothingisfree.ui.glyph
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -17,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +33,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.notifications.GlyphNotificationListener
+import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryBar
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryDrain
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
+import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
@@ -38,13 +49,16 @@ import io.github.hassanm0301.nothingisfree.ui.components.DotDivider
 import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
 import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
+import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
+import io.github.hassanm0301.nothingisfree.ui.components.NothingSlider
 import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.detailHeader
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
+import java.time.LocalTime
 
 /** One addon's settings. It is switched on per toy from each toy's page. */
 @Composable
@@ -62,6 +76,7 @@ fun AddonDetailScreen(
         detailHeader(back, onBack, kicker = "Addon", title = addon.title, body = addon.summary)
         when (addon) {
             AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, anyToy = on.isNotEmpty()) }
+            AddonId.BATTERY_LEVEL -> item { BatteryLevelSettings(viewModel, anyToy = on.isNotEmpty()) }
         }
     }
 }
@@ -218,6 +233,127 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
     )
 }
 
+@Composable
+private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
+    val battery by viewModel.battery.collectAsStateWithLifecycle()
+    val phonePercent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+    // null follows the phone; otherwise the level picked on the slider.
+    var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
+    val percent = pickedPercent ?: phonePercent ?: 100
+    val blank = remember { BlankFace(PREVIEW_SIZE) }
+
+    SectionHeader("Preview")
+    NothingCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MonoLabel("On the matrix · $PREVIEW_SIZE×$PREVIEW_SIZE", Modifier.weight(1f))
+            MonoLabel(
+                "${BatteryBar.lit(percent)} of ${BatteryBar.DOTS} dots",
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), BatteryGauge(battery, percent))
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$percent%", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+            NothingChip("Now", selected = pickedPercent == null, onClick = { pickedPercent = null })
+        }
+        NothingSlider(value = percent, onValueChange = { pickedPercent = it }, range = 0..100)
+        Row {
+            MonoLabel("0%", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+            MonoLabel("100%", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "Each dot is ${100 / BatteryBar.DOTS}% of the charge and stays lit until it is used up, so the " +
+            "last dot shows down to 1%. Slide to try other levels; only this preview changes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Position")
+    NothingCard {
+        MonoLabel("Edge")
+        Spacer(Modifier.height(Spacing.sm))
+        ChoiceChips(BatteryEdge.entries, battery.edge, { it.label }) { edge ->
+            viewModel.updateBattery { it.copy(edge = edge) }
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        MonoLabel("Drains")
+        Spacer(Modifier.height(Spacing.sm))
+        if (battery.edge.horizontal) {
+            ChoiceChips(BatteryDrain.entries, battery.drain, { it.label }) { drain ->
+                viewModel.updateBattery { it.copy(drain = drain) }
+            }
+        } else {
+            Text(
+                "Top to bottom, like a battery standing upright.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NothingTheme.colors.muted,
+            )
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        when {
+            !battery.edge.horizontal -> "The top dot goes out first and the bottom one last."
+            battery.drain == BatteryDrain.RIGHT_TO_LEFT -> "The right-hand dot goes out first and the left-hand one last."
+            else -> "The left-hand dot goes out first and the right-hand one last."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Brightness")
+    NothingCard {
+        SliderControl(
+            "Charge",
+            battery.brightness,
+            1..100,
+            { "$it%" },
+            onValueChange = { v -> viewModel.updateBattery { it.copy(brightness = v) } },
+            onStep = { d -> viewModel.updateBattery { it.copy(brightness = (it.brightness + d).coerceIn(1, 100)) } },
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        PercentControl(
+            "Used up",
+            battery.emptyBrightness,
+            onValueChange = { v -> viewModel.updateBattery { it.copy(emptyBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateBattery { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
+            },
+        )
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "Used-up dots at 0% stay dark, so only the charge left shows.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("On the phone")
+    Text(
+        if (anyToy) {
+            "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
+                "the phone for it. With the notification pulse on too, the ring pulses around the " +
+                "bar and leaves the level showing."
+        } else {
+            "Switch the addon on from a toy's page first."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+}
+
+/** A face that draws nothing, to show an addon on its own. */
+private class BlankFace(override val size: Int) : ToyFace {
+    override fun render(time: LocalTime, is24Hour: Boolean) = DotMatrix(size, size)
+    override fun occupies(x: Int, y: Int) = false
+}
+
 /** One run of [steps] as a line: time across, brightness up. */
 @Composable
 private fun PulseShape(steps: List<PulseStep>, modifier: Modifier = Modifier) {
@@ -237,5 +373,18 @@ private fun PulseShape(steps: List<PulseStep>, modifier: Modifier = Modifier) {
             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         drawPath(path, ink, style = Stroke(width = 2.dp.toPx()))
+    }
+}
+
+/** One chip per choice in a wrapping row, the [selected] one filled. */
+@Composable
+private fun <T> ChoiceChips(choices: List<T>, selected: T, label: (T) -> String, onPick: (T) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        choices.forEach { choice ->
+            NothingChip(text = label(choice), selected = choice == selected, onClick = { onPick(choice) })
+        }
     }
 }

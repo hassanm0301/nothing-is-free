@@ -63,6 +63,7 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
     val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
     // Starts at once even with battery saver, which would only hold it for the next minute.
     val pulse by rememberPulse(simulatedAt, pulseSettings.copy(batterySaver = false), pulseOn)
+    val battery = batteryGauge(viewModel, toy)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -87,7 +88,7 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
             }
             Spacer(Modifier.height(Spacing.lg))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                ToyMatrix(face, time, pulse.level, Modifier.width(240.dp))
+                ToyMatrix(face, time, pulse.level, Modifier.width(240.dp), battery)
             }
             Spacer(Modifier.height(Spacing.lg))
 

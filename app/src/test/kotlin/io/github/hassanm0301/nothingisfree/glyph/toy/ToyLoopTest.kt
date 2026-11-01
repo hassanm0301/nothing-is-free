@@ -2,6 +2,9 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
@@ -57,7 +60,22 @@ class ToyLoopTest {
         pulse: Flow<PulseSettings> = MutableStateFlow(PulseSettings()),
         showing: MutableStateFlow<Boolean> = MutableStateFlow(false),
         loop: ToyLoop = this@ToyLoopTest.loop,
-    ) = launch { loop.run(faces, pulseOn, pulse, alertAt, showing) }
+        batteryOn: Flow<Boolean> = MutableStateFlow(false),
+        battery: Flow<BatterySettings> = MutableStateFlow(BatterySettings()),
+    ) = launch { loop.run(faces, pulseOn, pulse, alertAt, showing, batteryOn, battery) }
+
+    /** The phone's battery level as the loop reads it, and how many times it has. */
+    private var batteryPercent: Int? = 60
+    private var batteryReads = 0
+    private val batteryLoop = ToyLoop(
+        show = { frames.trySend(it) },
+        is24Hour = { true },
+        clock = clock,
+        batteryLevel = { batteryReads++; batteryPercent },
+    )
+
+    /** The bottom row, where these tests put the battery bar, clear of the [top] ring cell. */
+    private fun DotMatrix.bottomRow() = (4..8).map { this[it, 12] }
 
     /** Ring brightness on the next frame. */
     private suspend fun nextRing() = nextFrame()[top.first, top.second]
@@ -315,6 +333,87 @@ class ToyLoopTest {
         loop.refresh()
         assertEquals(0, nextRing())
         assertIdle()
+        job.cancel()
+    }
+
+    @Test
+    fun `shows the battery level at once when the addon is switched on, and not before`() = runBlocking {
+        val batteryOn = MutableStateFlow(false)
+        val settings = BatterySettings(edge = BatteryEdge.BOTTOM, emptyBrightness = 0)
+        val job = runLoop(loop = batteryLoop, batteryOn = batteryOn, battery = MutableStateFlow(settings))
+        assertEquals(digital.frame(time, true).cells(), nextFrame().cells())
+        assertEquals(0, batteryReads)
+
+        batteryOn.value = true
+        assertEquals(digital.frame(time, true, battery = BatteryGauge(settings, 60)).cells(), nextFrame().cells())
+        assertIdle()
+
+        // A new level shows with the next repaint, here the AOD tick.
+        batteryPercent = 15
+        batteryLoop.refresh()
+        assertEquals(listOf(255, 0, 0, 0, 0), nextFrame().bottomRow())
+        assertIdle()
+
+        batteryOn.value = false
+        assertEquals(digital.frame(time, true).cells(), nextFrame().cells())
+        assertEquals(2, batteryReads)
+        job.cancel()
+    }
+
+    @Test
+    fun `battery settings changes repaint at once, and only matter while the addon is on`() = runBlocking {
+        val batteryOn = MutableStateFlow(true)
+        val battery = MutableStateFlow(BatterySettings(edge = BatteryEdge.BOTTOM, emptyBrightness = 0))
+        val job = runLoop(loop = batteryLoop, batteryOn = batteryOn, battery = battery)
+        assertEquals(listOf(255, 255, 255, 0, 0), nextFrame().bottomRow())
+
+        // 20 % and 2 % as matrix levels.
+        battery.value = battery.value.copy(brightness = 20, emptyBrightness = 2)
+        assertEquals(listOf(51, 51, 51, 5, 5), nextFrame().bottomRow())
+
+        battery.value = battery.value.copy(edge = BatteryEdge.TOP)
+        val onTop = nextFrame()
+        assertEquals(listOf(51, 51, 51, 5, 5), (4..8).map { onTop[it, 0] })
+        assertEquals(listOf(0, 0, 0, 0, 0), onTop.bottomRow())
+
+        batteryOn.value = false
+        nextFrame()
+        battery.value = battery.value.copy(brightness = 10)
+        assertIdle()
+        job.cancel()
+    }
+
+    @Test
+    fun `reads the battery with the clock, not on every pulse frame, and keeps it off the ring`() = runBlocking {
+        val settings = BatterySettings(edge = BatteryEdge.BOTTOM, emptyBrightness = 0)
+        val job = runLoop(
+            loop = batteryLoop,
+            // Long enough to run past the next minute.
+            pulse = MutableStateFlow(PulseSettings(repeat = 60)),
+            pulseOn = MutableStateFlow(true),
+            alertAt = MutableStateFlow(clock.now - RISE_MS),
+            batteryOn = MutableStateFlow(true),
+            battery = MutableStateFlow(settings),
+        )
+        val first = nextFrame()
+        assertEquals(255, first[top.first, top.second])
+        assertEquals(listOf(255, 255, 255, 0, 0), first.bottomRow())
+        repeat(5) { assertEquals(255, nextRing()) }
+        assertEquals(1, batteryReads)
+
+        // The pulse runs on past the minute: one more look then, and the new level shows.
+        batteryPercent = 100
+        clock.now = nextMinute
+        val later = withTimeout(1_000) {
+            var frame: DotMatrix
+            do {
+                frame = frames.receive()
+            } while (frame.bottomRow() != listOf(255, 255, 255, 255, 255))
+            frame
+        }
+        assertEquals(255, later[top.first, top.second])
+        repeat(5) { nextFrame() }
+        assertEquals(2, batteryReads)
         job.cancel()
     }
 

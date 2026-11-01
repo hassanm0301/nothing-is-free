@@ -9,6 +9,8 @@ Three tabs:
   - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
     the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of
     times after a notification, with a battery saver that only checks once a minute, with the clock.
+    **Battery level**: five dots on the top, bottom, left or right edge show the charge; top and
+    bottom can drain right to left or left to right.
 - **Widgets** – previews of the home-screen widgets to come.
 - **Settings** – updates, theme, device info and about.
 
@@ -70,11 +72,12 @@ app/src/main/kotlin/io/github/hassanm0301/nothingisfree/
   ui/              AppScreen (tab bar + tabs) and the shared AppViewModel
   dotmatrix/       DotMatrix frame model, 5x7 dot font, Compose renderer
   core/device/     Nothing device detection
+  core/battery/    the phone's battery level, for the battery level addon
   core/notifications/  notification listener feeding the Glyph pulse
   core/update/     self-update from GitHub releases (check, download, PackageInstaller)
   glyph/           GlyphCapability + GlyphController (in-app frames, still a no-op)
   glyph/toy/       the Glyph Toys (Digital clock, Binary clock) on a shared GlyphToyService
-  glyph/addon/     addons drawn on any toy (Notification pulse) and their settings
+  glyph/addon/     addons drawn on any toy (Notification pulse, Battery level) and their settings
   ui/glyph/        Glyph tab: toy and addon lists, their settings pages, the preview sheet
   ui/widgets/      Widgets tab
   ui/settings/     Settings tab
