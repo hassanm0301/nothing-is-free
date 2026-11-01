@@ -50,6 +50,7 @@ private const val MINUTES_PER_DAY = 24 * 60
 @Composable
 fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
+    val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
     val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
     val now by rememberNow()
@@ -59,7 +60,7 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
     var simulatedAt by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val time = pickedMinute?.let { LocalTime.of(it / 60, it % 60) } ?: now
-    val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
+    val face = remember(toy, digitalClock, binaryClock) { toy.face(PREVIEW_SIZE, digitalClock, binaryClock) }
     val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
     // Starts at once even with battery saver, which would only hold it for the next minute.
     val pulse by rememberPulse(simulatedAt, pulseSettings.copy(batterySaver = false), pulseOn)
