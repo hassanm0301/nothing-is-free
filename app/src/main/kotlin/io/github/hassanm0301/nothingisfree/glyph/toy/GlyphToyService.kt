@@ -15,6 +15,7 @@ import com.nothing.ketchum.Glyph
 import com.nothing.ketchum.GlyphException
 import com.nothing.ketchum.GlyphMatrixManager
 import com.nothing.ketchum.GlyphToy
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryLevel
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
@@ -31,7 +32,8 @@ import kotlinx.coroutines.launch
  * process shares through [arbiter].
  *
  * A toy only names itself ([toyId]) and its face ([faces]). The base runs the [ToyLoop], repaints
- * on each AOD tick, and adds the addons switched on for the toy in [AddonPreferences].
+ * on each AOD tick, and adds the addons switched on for the toy in [AddonPreferences]: the
+ * notification pulse and the battery level.
  */
 abstract class GlyphToyService : Service() {
 
@@ -100,6 +102,7 @@ abstract class GlyphToyService : Service() {
             is24Hour = { DateFormat.is24HourFormat(this) },
             // Held for what is left of a running pulse, and let go when it ends or is switched off.
             keepAwake = { forMs -> if (forMs != null) wakeLock.acquire(forMs) else releaseWakeLock() },
+            batteryLevel = { BatteryLevel.read(this) },
         )
         loop = toyLoop
         job = scope.launch {
@@ -109,6 +112,8 @@ abstract class GlyphToyService : Service() {
                 AddonPreferences.pulse,
                 RecentNotifications.lastAlertAt,
                 RecentNotifications.anyShowing,
+                AddonPreferences.enabledFlow(AddonId.BATTERY_LEVEL, toyId),
+                AddonPreferences.battery,
             )
         }
     }
