@@ -18,9 +18,9 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
 - `glyph/toy/` – the [toys](#toys), **Digital clock** and **Binary clock**, sharing:
   - `ToyFace` – what a toy draws on its own: `render(time, is24Hour)`, plus `occupies(x, y)`, the
     area it keeps for itself, so addons can draw around it.
-  - `ToyId` – the toy registry, in the order the Glyph tab lists them. `face(size, …)` builds a
-    toy's face with its current options. Persisted by name (addon settings), so don't rename
-    entries.
+  - `ToyId` – the toy registry, in the order the Glyph tab lists them.
+    `face(size, digital, binary)` builds a toy's face with its current options. Persisted by name
+    (addon settings), so don't rename entries.
   - `ToyLoop` – the one SDK-free loop every toy runs: a frame each minute and on `refresh()`, one
     at once when the face, an addon switch, the last alert (unless on battery saver) or an addon's
     settings change, and 25 fps while a notification pulse is running. Draws through `frame()` (see
@@ -73,9 +73,18 @@ Hours over minutes in 3x5 digits on the 13x13 matrix (5x7 on a 25x25). The edge 
 addons. Before addons this was the "Pulse clock", with the notification pulse built in; the pulse
 is now an addon, on for this toy by default.
 
+Options (`DigitalClockSettings`), applied to the matrix as soon as they change:
+- **Brightness** – of the digits, 1..100 % (default 100 %, the full brightness the clock always
+  had), turned into a matrix level by `dotmatrix/Brightness` and rescaled to the hardware's
+  0..4095. It never goes to 0, which would leave only the addons. Addons keep their own brightness
+  settings (the pulse steps, the battery bar's charge and used-up brightness). Saved as
+  `brightness_percent` and always brought within 1..100 (`DigitalClockSettings.normalized`).
+
 - `glyph/toy/ClockFace` – the frame.
 - `glyph/toy/ClockToyService` – the toy service. It keeps its old class name because the phone
-  remembers the chosen toy by component name; renaming it would quietly unselect the toy.
+  remembers the chosen toy by component name; renaming it would quietly unselect the toy. Its face
+  flow emits again whenever the settings change.
+- `glyph/toy/DigitalClockPreferences` – the settings, persisted.
 
 ### Binary clock
 HH:MM in binary-coded decimal: four columns (hours tens, hours units, minutes tens, minutes

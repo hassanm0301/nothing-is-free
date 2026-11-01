@@ -123,6 +123,7 @@ private fun GlyphLists(
     onOpen: (GlyphPage) -> Unit,
 ) {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
+    val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
     val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
@@ -155,7 +156,7 @@ private fun GlyphLists(
         }
         when (section) {
             GlyphSection.TOYS -> items(ToyId.entries, key = { it.name }) { toy ->
-                val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
+                val face = remember(toy, digitalClock, binaryClock) { toy.face(PREVIEW_SIZE, digitalClock, binaryClock) }
                 val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
                 val pulse = rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
                 val level by remember { derivedStateOf { pulse.value.level } }

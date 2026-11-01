@@ -14,6 +14,8 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
+import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
@@ -68,6 +70,12 @@ class AppViewModel : ViewModel() {
     /** The phone's battery level, 0..100 (null if unknown), followed while a screen shows it. */
     val batteryPercent: StateFlow<Int?> = BatteryLevel.changes(NothingIsFreeApp.instance)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BatteryLevel.read(NothingIsFreeApp.instance))
+
+    /** Digital clock toy options; the toy redraws as soon as they change. */
+    val digitalClock: StateFlow<DigitalClockSettings> = DigitalClockPreferences.settings
+
+    fun updateDigitalClock(transform: (DigitalClockSettings) -> DigitalClockSettings) =
+        DigitalClockPreferences.update(transform)
 
     /** Binary clock toy options; the toy redraws as soon as they change. */
     val binaryClock: StateFlow<BinaryClockSettings> = BinaryClockPreferences.settings
