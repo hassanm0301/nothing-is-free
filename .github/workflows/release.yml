@@ -1,21 +1,54 @@
 name: Release
 
-# Push a tag like v0.2.0 (matching versionName) to build a signed APK and publish it as a GitHub
-# release. A tag with a suffix, like v0.6.0-beta.1, is published as a pre-release, which only
-# copies with Beta updates on are offered. Installed copies pick it up through the in-app updater.
-# See README › Releases.
+# Builds a signed APK and publishes it as a GitHub release, started either way (README › Releases):
+# - Run workflow (Actions tab or API) on main: tags the commit it builds v<versionName>, then
+#   publishes. Claude Code cloud sessions release this way, since they cannot push tags.
+# - Push a tag like v0.2.0, matching versionName.
+# A version with a suffix, like 0.6.0-beta.1, is published as a pre-release, which only copies
+# with Beta updates on are offered. Installed copies pick it up through the in-app updater.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+# One release at a time, so two manual runs cannot both find the tag free.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Work out the tag
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          tag="v$version"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            if [ "$tag" != "$GITHUB_REF_NAME" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match versionName $version"
+              exit 1
+            fi
+          else
+            if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+              echo "::error::Run this workflow on $DEFAULT_BRANCH, not $GITHUB_REF_NAME"
+              exit 1
+            fi
+            status=0
+            git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null || status=$?
+            case $status in
+              0) echo "::error::$tag already exists; bump versionCode and versionName first"; exit 1 ;;
+              2) ;; # no such tag
+              *) echo "::error::Could not check whether $tag exists"; exit 1 ;;
+            esac
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,13 +57,6 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0"
-      - name: Check tag matches versionName
-        run: |
-          version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match versionName $version"
-            exit 1
-          fi
       - name: Restore signing key
         env:
           NIF_KEYSTORE_BASE64: ${{ secrets.NIF_KEYSTORE_BASE64 }}
@@ -52,16 +78,18 @@ jobs:
         run: |
           apk=app/build/outputs/apk/release/app-release.apk
           "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$apk"
-          cp "$apk" "nothing-is-free-$GITHUB_REF_NAME.apk"
+          cp "$apk" "nothing-is-free-$TAG.apk"
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          apk="nothing-is-free-$GITHUB_REF_NAME.apk"
-          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
+          apk="nothing-is-free-$TAG.apk"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$apk" --clobber
           else
             prerelease=()
-            case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease) ;; esac
-            gh release create "$GITHUB_REF_NAME" "$apk" --title "$GITHUB_REF_NAME" --generate-notes "${prerelease[@]}"
+            case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+            # On a manual run the tag does not exist yet: --target creates it on the commit just
+            # built. (A tag made with this token does not start the push trigger again.)
+            gh release create "$TAG" "$apk" --title "$TAG" --generate-notes --target "$GITHUB_SHA" "${prerelease[@]}"
           fi
