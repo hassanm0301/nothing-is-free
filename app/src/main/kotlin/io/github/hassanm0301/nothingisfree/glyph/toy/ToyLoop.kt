@@ -2,8 +2,9 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonLayout
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
-import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryLook
 import io.github.hassanm0301.nothingisfree.glyph.addon.MinuteCheck
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
@@ -27,8 +28,8 @@ import java.time.ZoneId
  * changes, and every frame while a notification pulse is running for it. Frames are drawn through
  * [frame], like the in-app previews. SDK-free; [show] is where frames leave for the hardware, and
  * [keepAwake] is told how long a pulse that just started still has to run (null once none is), so
- * it can keep the CPU up meanwhile. [batteryLevel] reads the phone's charge (0..100, null if
- * unknown) for the battery addon; it is only asked on repaints that are not pulse frames, so at
+ * it can keep the CPU up meanwhile. [batteryState] reads the phone's battery (null if unknown)
+ * for the battery addons; it is only asked on repaints that are not pulse frames, so at
  * most about once a minute, and never wakes the phone by itself.
  */
 class ToyLoop(
@@ -36,7 +37,7 @@ class ToyLoop(
     private val is24Hour: () -> Boolean,
     private val clock: Clock = PhoneClock,
     private val keepAwake: (forMs: Long?) -> Unit = {},
-    private val batteryLevel: () -> Int? = { null },
+    private val batteryState: () -> BatteryState? = { null },
 ) {
     private val redraw = Channel<Unit>(Channel.CONFLATED)
 
@@ -52,8 +53,9 @@ class ToyLoop(
     }
 
     /**
-     * Runs until cancelled. [faces] re-emits when the toy's options change; [pulseOn] and
-     * [batteryOn] are whether the notification pulse and battery level addons are on for this toy.
+     * Runs until cancelled. [faces] re-emits when the toy's options change; [pulseOn] is whether
+     * the notification pulse is on for this toy, and [battery] the settings of the battery addon on
+     * for it (null for none).
      * Any new input restarts the loop, so it shows at once and a new alert starts its pulse
      * straight away; except with battery saver, which reads [lastAlertAt] and [anyShowing] only on
      * the first repaint of each minute.
@@ -64,14 +66,13 @@ class ToyLoop(
         pulse: Flow<PulseSettings>,
         lastAlertAt: StateFlow<Long?>,
         anyShowing: StateFlow<Boolean>,
-        batteryOn: Flow<Boolean> = flowOf(false),
-        battery: Flow<BatterySettings> = flowOf(BatterySettings()),
+        battery: Flow<BatteryLook?> = flowOf(null),
     ) {
-        // Where the addons go only depends on the face and the battery bar, so work it out once
-        // for each rather than per frame. Battery settings don't matter while the addon is off.
-        val layouts = combine(faces, batteryOn, battery) { face, on, bar -> face to bar.takeIf { on } }
+        // Where the addons go only depends on the face and the battery addon, so work it out once
+        // for each rather than per frame.
+        val layouts = combine(faces, battery) { face, look -> face to look }
             .distinctUntilChanged()
-            .map { (face, bar) -> Layout(face, bar, AddonLayout(face, bar)) }
+            .map { (face, look) -> Layout(face, look, AddonLayout(face, look)) }
         combine(layouts, pulseOn, pulse, lastAlertAt) { layout, on, settings, alertAt ->
             Scene(layout, on, settings, alertAt?.takeIf { on && !settings.batterySaver })
         }
@@ -94,7 +95,7 @@ class ToyLoop(
             // The battery level is read with the clock: on the minute and on a refresh, but not on
             // each pulse frame in between.
             if (battery != null && (fresh || now / MINUTE_MS != gaugeMinute)) {
-                gauge = batteryLevel()?.let { BatteryGauge(battery, it) }
+                gauge = batteryState()?.let { BatteryGauge(battery, it) }
                 gaugeMinute = now / MINUTE_MS
             }
             // Checked on every repaint, so the first one of each minute is battery saver's look.
@@ -119,8 +120,8 @@ class ToyLoop(
         keepAwake(until?.let { it - now })
     }
 
-    /** The [face], the [battery] bar's settings (null with the addon off), and where the addons go. */
-    private class Layout(val face: ToyFace, val battery: BatterySettings?, val addons: AddonLayout)
+    /** The [face], the [battery] addon's settings (null with none), and where the addons go. */
+    private class Layout(val face: ToyFace, val battery: BatteryLook?, val addons: AddonLayout)
 
     /**
      * What to paint until an input changes. [alertAt] is the last alert when it starts pulses

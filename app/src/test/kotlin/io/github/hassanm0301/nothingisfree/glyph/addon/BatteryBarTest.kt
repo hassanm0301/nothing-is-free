@@ -141,7 +141,7 @@ class BatteryBarTest {
     fun `the pulse ring goes round the bar, so a pulse never covers the reading`() {
         val settings = BatterySettings(edge = BatteryEdge.TOP, emptyBrightness = 0)
         val layout = AddonLayout(digital, settings)
-        val bar = layout.bar.toSet()
+        val bar = layout.battery.toSet()
         assertEquals(NotificationPulse.ring(digital).toSet() - bar, layout.ring.toSet())
         assertEquals(32 - BatteryBar.DOTS, layout.ring.size)
 
@@ -153,7 +153,7 @@ class BatteryBarTest {
     @Test
     fun `with the addon off the layout has no bar and the whole ring`() {
         val layout = AddonLayout(digital, null)
-        assertTrue(layout.bar.isEmpty())
+        assertTrue(layout.battery.isEmpty())
         assertEquals(NotificationPulse.ring(digital), layout.ring)
     }
 }

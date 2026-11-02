@@ -4,9 +4,6 @@ import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 
-/** The battery level to show: the phone's charge, 0..100, drawn with [settings]. */
-data class BatteryGauge(val settings: BatterySettings, val percent: Int)
-
 /**
  * The battery level addon: a line of [DOTS] dots on the outermost row or column of the round
  * matrix, on the edge picked in [BatterySettings]. Each dot is an equal share of the charge (20%
@@ -21,21 +18,11 @@ object BatteryBar {
      * one, its middle [DOTS]. Dots the face occupies are left out.
      */
     fun cells(face: ToyFace, settings: BatterySettings): List<Pair<Int, Int>> {
-        val n = face.size
-        val horizontal = settings.edge.horizontal
-        val fromNear = settings.edge == BatteryEdge.TOP || settings.edge == BatteryEdge.LEFT
-        // Lines from the chosen edge inwards; the bar takes the first with room for all its dots.
-        val leds = (0 until n).asSequence()
-            .map { i -> if (fromNear) i else n - 1 - i }
-            .map { line ->
-                (0 until n).map { j -> if (horizontal) j to line else line to j }.filter { (x, y) -> face.isLed(x, y) }
-            }
-            .firstOrNull { it.size >= DOTS } ?: return emptyList()
         // Left to right, or top to bottom.
-        val bar = leds.drop((leds.size - DOTS) / 2).take(DOTS)
+        val bar = EdgeBlock.lines(face, settings.edge, DOTS, depth = 1)?.single() ?: return emptyList()
         // Emptying right to left, the left-hand dot lights first. Otherwise the far end does: the
         // right-hand dot, or on the sides the bottom one, like a battery standing upright.
-        val fillOrder = if (horizontal && settings.drain == BatteryDrain.RIGHT_TO_LEFT) bar else bar.reversed()
+        val fillOrder = if (settings.edge.horizontal && settings.drain == BatteryDrain.RIGHT_TO_LEFT) bar else bar.reversed()
         return fillOrder.filterNot { (x, y) -> face.occupies(x, y) }
     }
 
@@ -55,17 +42,16 @@ object BatteryBar {
     }
 
     /**
-     * Draw [gauge] on [frame] over [bar], the cells from [cells]: lit dots, then the used-up ones.
-     * With [BatterySettings.fadeHighestDot], the highest lit dot sits between the two brightnesses
-     * by how much of its share is left.
+     * Draw [percent] with [s] on [frame] over [bar], the cells from [cells]: lit dots, then the
+     * used-up ones. With [BatterySettings.fadeHighestDot], the highest lit dot sits between the two
+     * brightnesses by how much of its share is left.
      */
-    fun draw(frame: DotMatrix, bar: List<Pair<Int, Int>>, gauge: BatteryGauge) {
-        val s = gauge.settings
-        val lit = lit(gauge.percent, bar.size)
+    fun draw(frame: DotMatrix, bar: List<Pair<Int, Int>>, s: BatterySettings, percent: Int) {
+        val lit = lit(percent, bar.size)
         val on = Brightness.level(s.brightness)
         val off = Brightness.level(s.emptyBrightness)
         val highest = if (s.fadeHighestDot) {
-            val left = highestDotCharge(gauge.percent, bar.size)
+            val left = highestDotCharge(percent, bar.size)
             Brightness.level(s.emptyBrightness + (s.brightness - s.emptyBrightness) * left)
         } else {
             on
@@ -78,15 +64,4 @@ object BatteryBar {
             }
         }
     }
-}
-
-/**
- * Where the addons draw on [face]: the battery bar (with [battery] settings, or none when the
- * addon is off), and the notification pulse ring on the rest of the edge, so the pulse never
- * covers the reading. Depends only on the face and the bar's edge; toys work it out once per face
- * rather than per frame.
- */
-class AddonLayout(face: ToyFace, battery: BatterySettings?) {
-    val bar: List<Pair<Int, Int>> = battery?.let { BatteryBar.cells(face, it) }.orEmpty()
-    val ring: List<Pair<Int, Int>> = NotificationPulse.ring(face, exclude = bar.toSet())
 }

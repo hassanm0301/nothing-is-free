@@ -7,7 +7,7 @@ import java.time.LocalTime
 /**
  * The notification pulse addon: the outer ring of the round matrix breathes (see [PulseWave]) for
  * a while after a notification. Works on any [ToyFace]: the ring is the matrix edge minus
- * whatever the face occupies, and minus the battery bar when that addon is on too.
+ * whatever the face occupies, and minus the battery addon's dots when one is on too.
  */
 object NotificationPulse {
 
@@ -28,7 +28,7 @@ object NotificationPulse {
 
 /**
  * The full frame a toy shows: [face] at [time], plus the addons: the notification pulse at
- * [pulseLevel] (0..255, 0 = none) and the [battery] level (null = none). [layout] is where they
+ * [pulseLevel] (0..255, 0 = none) and a [battery] addon (null = none). [layout] is where they
  * go; pass one worked out ahead to save doing it per frame. The toy services and the in-app
  * previews both draw through this.
  */
@@ -37,8 +37,8 @@ fun ToyFace.frame(
     is24Hour: Boolean,
     pulseLevel: Int = 0,
     battery: BatteryGauge? = null,
-    layout: AddonLayout = AddonLayout(this, battery?.settings),
+    layout: AddonLayout = AddonLayout(this, battery?.look),
 ): DotMatrix = render(time, is24Hour).also { frame ->
-    battery?.let { BatteryBar.draw(frame, layout.bar, it) }
+    battery?.draw(frame, layout.battery)
     NotificationPulse.draw(frame, layout.ring, pulseLevel)
 }

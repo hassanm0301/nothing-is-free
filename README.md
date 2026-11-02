@@ -6,12 +6,14 @@ Three tabs:
   - *Toys*: **Digital clock** (adjustable brightness) and **Binary clock** (HH:MM in BCD, dot or
     2x2 square bits, adjustable active/inactive brightness). Each opens a settings page with a
     live matrix and a **Preview** sheet: scrub the time of day and simulate a notification.
-  - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
+  - *Addons*: drawn on top of any toy, switched on from each toy's page, in categories with one
+    addon of each per toy. *Notification* – **Notification pulse**:
     the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of
     times after a notification, with a battery saver that only checks once a minute, with the clock.
-    **Battery level**: five dots on the top, bottom, left or right edge show the charge; top and
-    bottom can drain right to left or left to right, and the highest dot can fade with what is
-    left of its 20%.
+    *Battery* – **Battery level**: five dots on the top, bottom, left or right edge show the
+    charge; top and bottom can drain right to left or left to right, and the highest dot can fade
+    with what is left of its 20%. **Binary battery**: the exact percentage in BCD on a 5x2 block at
+    an edge, with charging and battery saver dots.
 - **Widgets** – **Precise volume**: the volume level as text (percent or steps) beside the system
   volume bar while you change the volume, from an accessibility service (see `docs/WIDGETS.md`).
   Below it, previews of the home-screen widgets to come.
