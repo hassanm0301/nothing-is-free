@@ -35,11 +35,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.notifications.GlyphNotificationListener
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryBar
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryDrain
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBattery
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
+import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
@@ -73,10 +76,11 @@ fun AddonDetailScreen(
     val on = addons[addon].orEmpty()
 
     NothingScreen(insets) {
-        detailHeader(back, onBack, kicker = "Addon", title = addon.title, body = addon.summary)
+        detailHeader(back, onBack, kicker = "Addon · ${addon.category.title}", title = addon.title, body = addon.summary)
         when (addon) {
             AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, anyToy = on.isNotEmpty()) }
             AddonId.BATTERY_LEVEL -> item { BatteryLevelSettings(viewModel, anyToy = on.isNotEmpty()) }
+            AddonId.BINARY_BATTERY -> item { BinaryBatteryOptions(viewModel, anyToy = on.isNotEmpty()) }
         }
     }
 }
@@ -236,10 +240,10 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
 @Composable
 private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
     val battery by viewModel.battery.collectAsStateWithLifecycle()
-    val phonePercent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+    val phone by viewModel.batteryState.collectAsStateWithLifecycle()
     // null follows the phone; otherwise the level picked on the slider.
     var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
-    val percent = pickedPercent ?: phonePercent ?: 100
+    val percent = pickedPercent ?: phone?.percent ?: 100
     val blank = remember { BlankFace(PREVIEW_SIZE) }
 
     SectionHeader("Preview")
@@ -356,7 +360,137 @@ private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
                 "bar and leaves the level showing."
         } else {
             "Switch the addon on from a toy's page first."
-        },
+        } + " A toy shows one battery addon: switching this on there switches ${AddonId.BINARY_BATTERY.title} off.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+}
+
+@Composable
+private fun BinaryBatteryOptions(viewModel: AppViewModel, anyToy: Boolean) {
+    val binary by viewModel.binaryBattery.collectAsStateWithLifecycle()
+    val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
+    val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
+    val phone by viewModel.batteryState.collectAsStateWithLifecycle()
+    // null follows the phone; otherwise what was picked here.
+    var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pickedCharging by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var pickedPowerSave by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val state = BatteryState(
+        percent = pickedPercent ?: phone?.percent ?: 100,
+        charging = pickedCharging ?: phone?.charging ?: false,
+        powerSave = pickedPowerSave ?: phone?.powerSave ?: false,
+    )
+    val following = pickedPercent == null && pickedCharging == null && pickedPowerSave == null
+    val blank = remember { BlankFace(PREVIEW_SIZE) }
+
+    SectionHeader("Preview")
+    NothingCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MonoLabel("On the matrix · $PREVIEW_SIZE×$PREVIEW_SIZE", Modifier.weight(1f))
+            MonoLabel(binary.edge.label, color = MaterialTheme.colorScheme.onBackground)
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), BatteryGauge(binary, state))
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${state.percent}%", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+            NothingChip("Now", selected = following, onClick = {
+                pickedPercent = null
+                pickedCharging = null
+                pickedPowerSave = null
+            })
+        }
+        NothingSlider(value = state.percent, onValueChange = { pickedPercent = it }, range = 0..100)
+        Row {
+            MonoLabel("0%", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+            MonoLabel("100%", style = MaterialTheme.typography.labelSmall)
+        }
+        Spacer(Modifier.height(Spacing.md))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            NothingChip("Charging", selected = state.charging, onClick = { pickedCharging = !state.charging })
+            NothingChip("Battery saver", selected = state.powerSave, onClick = { pickedPowerSave = !state.powerSave })
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        if (binary.edge.horizontal) {
+            "Top row: tens; bottom row: units. From the left, the dots are worth 8, 4, 2 and 1: add up " +
+                "the lit ones. The fifth dot of the top row is lit while charging, of the bottom row " +
+                "while battery saver is on. 73% is 0111 over 0011."
+        } else {
+            "Left column: tens; right column: units. From the top, the dots are worth 8, 4, 2 and 1: " +
+                "add up the lit ones. The bottom dot of the left column is lit while charging, of the " +
+                "right column while battery saver is on. 73% is 0111 beside 0011."
+        } + " Slide or tap to try other states; only this preview changes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Position")
+    NothingCard {
+        MonoLabel("Edge")
+        Spacer(Modifier.height(Spacing.sm))
+        ChoiceChips(BatteryEdge.entries, binary.edge, { it.label }) { edge ->
+            viewModel.updateBinaryBattery { it.copy(edge = edge) }
+        }
+    }
+    // Toys whose face leaves no room at the chosen edge, and where the block goes on them instead.
+    val moved = ToyId.entries.mapNotNull { toy ->
+        val placed = BinaryBattery.placement(toy.face(PREVIEW_SIZE, digitalClock, binaryClock), binary)
+        if (placed == binary.edge) null else toy to placed
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    val movedNote = moved.joinToString("") { (toy, placed) ->
+        " The ${toy.title} leaves no room at the ${binary.edge.label.lowercase()}, so there it goes " +
+            if (placed != null) "on the ${placed.label.lowercase()}." else "nowhere."
+    }
+    Text(
+        "Two lines deep and five dots long, on the outermost lines of that edge.$movedNote",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Brightness")
+    NothingCard {
+        SliderControl(
+            "Set bits",
+            binary.activeBrightness,
+            1..100,
+            { "$it%" },
+            onValueChange = { v -> viewModel.updateBinaryBattery { it.copy(activeBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateBinaryBattery { it.copy(activeBrightness = (it.activeBrightness + d).coerceIn(1, 100)) }
+            },
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        PercentControl(
+            "Clear bits",
+            binary.inactiveBrightness,
+            onValueChange = { v -> viewModel.updateBinaryBattery { it.copy(inactiveBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateBinaryBattery { it.copy(inactiveBrightness = (it.inactiveBrightness + d).coerceIn(0, 100)) }
+            },
+        )
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "The status dots use the same two brightnesses. Clear bits at 0% stay dark, so only what is " +
+            "set shows.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("On the phone")
+    Text(
+        if (anyToy) {
+            "The toy reads the battery each time its clock updates, once a minute, so it never wakes " +
+                "the phone for it. With the notification pulse on too, the ring pulses around the block."
+        } else {
+            "Switch the addon on from a toy's page first."
+        } + " A toy shows one battery addon: switching this on there switches ${AddonId.BATTERY_LEVEL.title} off.",
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
     )

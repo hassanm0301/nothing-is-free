@@ -9,22 +9,39 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.updateAndGet
 
 /**
- * Addons draw on top of any Glyph Toy. Each is switched on per toy. Persisted by [name], so
- * don't rename entries.
+ * What an addon shows. A toy runs at most one addon of each category, in the order the Glyph tab
+ * lists them.
  */
-enum class AddonId(val title: String, val summary: String) {
+enum class AddonCategory(val title: String) {
+    NOTIFICATION("Notification"),
+    BATTERY("Battery"),
+}
+
+/**
+ * Addons draw on top of any Glyph Toy. Each is switched on per toy, at most one per [category].
+ * Persisted by [name], so don't rename entries.
+ */
+enum class AddonId(val title: String, val summary: String, val category: AddonCategory) {
     NOTIFICATION_PULSE(
         "Notification pulse",
         "The outer ring pulses in a pattern you set after a notification",
+        AddonCategory.NOTIFICATION,
     ),
     BATTERY_LEVEL(
         "Battery level",
         "Five dots along one edge show how much charge is left",
+        AddonCategory.BATTERY,
+    ),
+    BINARY_BATTERY(
+        "Binary battery",
+        "The exact percentage in binary-coded decimal on a 5x2 block, with charging and battery saver",
+        AddonCategory.BATTERY,
     ),
 }
 
@@ -109,7 +126,7 @@ data class PulseSettings(
     }
 }
 
-/** The edge of the matrix the battery bar sits on: its outermost line of LEDs on that side. */
+/** The edge of the matrix a battery addon sits on, from its outermost line of LEDs inwards. */
 enum class BatteryEdge(val label: String) {
     TOP("Top"),
     BOTTOM("Bottom"),
@@ -117,7 +134,7 @@ enum class BatteryEdge(val label: String) {
     RIGHT("Right"),
     ;
 
-    /** Whether the bar runs across the matrix (top or bottom) rather than up it. */
+    /** Whether the addon runs across the matrix (top or bottom) rather than up it. */
     val horizontal: Boolean get() = this == TOP || this == BOTTOM
 }
 
@@ -141,12 +158,33 @@ enum class BatteryDrain(val label: String) {
  *   fourth of five dots holds half its 20%, so it sits halfway between the two.
  */
 data class BatterySettings(
-    val edge: BatteryEdge = BatteryEdge.TOP,
+    override val edge: BatteryEdge = BatteryEdge.TOP,
     val drain: BatteryDrain = BatteryDrain.RIGHT_TO_LEFT,
     val brightness: Int = 100,
     val emptyBrightness: Int = 10,
     val fadeHighestDot: Boolean = false,
-)
+) : BatteryLook
+
+/**
+ * How the binary battery addon looks. One setting for every toy. Brightness values are 0..100 %.
+ *
+ * @property edge where the 5x2 block goes, if it fits beside the toy's face (see [BinaryBattery]).
+ * @property activeBrightness set bits, and the status dots when on.
+ * @property inactiveBrightness clear bits, and the status dots when off; 0 leaves them dark.
+ */
+data class BinaryBatterySettings(
+    override val edge: BatteryEdge = BatteryEdge.LEFT,
+    val activeBrightness: Int = 100,
+    val inactiveBrightness: Int = 10,
+) : BatteryLook
+
+/**
+ * The settings of a [AddonCategory.BATTERY] addon: what it looks like, and so where it goes. A toy
+ * shows at most one.
+ */
+sealed interface BatteryLook {
+    val edge: BatteryEdge
+}
 
 /**
  * Addon settings, shared by the app UI and the toy services (same process). [init] runs from
@@ -168,6 +206,9 @@ object AddonPreferences {
     private const val KEY_BATTERY_BRIGHTNESS = "battery_brightness_percent"
     private const val KEY_BATTERY_EMPTY_BRIGHTNESS = "battery_empty_brightness_percent"
     private const val KEY_BATTERY_FADE = "battery_fade_highest_dot"
+    private const val KEY_BINARY_EDGE = "binary_battery_edge"
+    private const val KEY_BINARY_ACTIVE = "binary_battery_active_percent"
+    private const val KEY_BINARY_INACTIVE = "binary_battery_inactive_percent"
 
     /** Battery brightness saved on the old 0..255 scale, converted the first time it is read. */
     private const val KEY_LEGACY_BATTERY_BRIGHTNESS = "battery_brightness"
@@ -183,8 +224,9 @@ object AddonPreferences {
     private val _enabled = MutableStateFlow(defaults)
     private val _pulse = MutableStateFlow(PulseSettings())
     private val _battery = MutableStateFlow(BatterySettings())
+    private val _binaryBattery = MutableStateFlow(BinaryBatterySettings())
 
-    /** For each addon, the toys it is switched on for. */
+    /** For each addon, the toys it is switched on for. A toy is in at most one per category. */
     val enabled: StateFlow<Map<AddonId, Set<ToyId>>> = _enabled.asStateFlow()
 
     /** The notification pulse's settings. */
@@ -193,14 +235,19 @@ object AddonPreferences {
     /** The battery level addon's settings. */
     val battery: StateFlow<BatterySettings> = _battery.asStateFlow()
 
+    /** The binary battery addon's settings. */
+    val binaryBattery: StateFlow<BinaryBatterySettings> = _binaryBattery.asStateFlow()
+
     fun init(context: Context) {
         val p = context.getSharedPreferences("glyph_addons", Context.MODE_PRIVATE)
         prefs = p
-        _enabled.value = AddonId.entries.associateWith { addon ->
-            p.getStringSet(keyToys(addon), null)
-                ?.mapNotNull { name -> ToyId.entries.firstOrNull { it.name == name } }?.toSet()
-                ?: defaults[addon].orEmpty()
-        }
+        _enabled.value = onePerCategory(
+            AddonId.entries.associateWith { addon ->
+                p.getStringSet(keyToys(addon), null)
+                    ?.mapNotNull { name -> ToyId.entries.firstOrNull { it.name == name } }?.toSet()
+                    ?: defaults[addon].orEmpty()
+            },
+        )
         val d = PulseSettings()
         _pulse.value = PulseSettings(
             steps = p.getString(KEY_STEPS, null)?.let(PulseSettings::decode) ?: d.steps,
@@ -223,6 +270,13 @@ object AddonPreferences {
             emptyBrightness = percent(p, KEY_BATTERY_EMPTY_BRIGHTNESS, KEY_LEGACY_BATTERY_EMPTY_BRIGHTNESS, b.emptyBrightness),
             fadeHighestDot = p.getBoolean(KEY_BATTERY_FADE, b.fadeHighestDot),
         )
+        val bb = BinaryBatterySettings()
+        _binaryBattery.value = BinaryBatterySettings(
+            edge = p.getString(KEY_BINARY_EDGE, null)
+                ?.let { s -> BatteryEdge.entries.firstOrNull { it.name == s } } ?: bb.edge,
+            activeBrightness = p.getInt(KEY_BINARY_ACTIVE, bb.activeBrightness).coerceIn(1, 100),
+            inactiveBrightness = p.getInt(KEY_BINARY_INACTIVE, bb.inactiveBrightness).coerceIn(0, 100),
+        )
     }
 
     /**
@@ -244,13 +298,64 @@ object AddonPreferences {
     fun enabledFlow(addon: AddonId, toy: ToyId): Flow<Boolean> =
         enabled.map { toy in it[addon].orEmpty() }.distinctUntilChanged()
 
+    /**
+     * Switch [addon] on or off for [toy]. Switching it on switches off the other addon of its
+     * category on that toy, if one was on: a toy runs one addon per category.
+     */
     fun setEnabled(addon: AddonId, toy: ToyId, on: Boolean) {
-        val all = _enabled.updateAndGet { current ->
-            val toys = current[addon].orEmpty()
-            current + (addon to if (on) toys + toy else toys - toy)
+        val all = _enabled.updateAndGet { current -> withAddon(current, addon, toy, on) }
+        prefs?.edit {
+            AddonId.entries.forEach { a -> putStringSet(keyToys(a), all[a].orEmpty().map { it.name }.toSet()) }
         }
-        prefs?.edit { putStringSet(keyToys(addon), all[addon].orEmpty().map { it.name }.toSet()) }
     }
+
+    /**
+     * The battery addon on for [toy], as its settings (null with none), as either changes. The
+     * toy services draw it; see [BatteryLook].
+     */
+    fun batteryLook(toy: ToyId): Flow<BatteryLook?> =
+        combine(enabled, battery, binaryBattery) { on, bar, binary -> batteryLook(on, toy, bar, binary) }
+            .distinctUntilChanged()
+
+    /** The settings of the battery addon that [on] has switched on for [toy], or null for none. */
+    fun batteryLook(
+        on: Map<AddonId, Set<ToyId>>,
+        toy: ToyId,
+        bar: BatterySettings,
+        binary: BinaryBatterySettings,
+    ): BatteryLook? = when (active(on, AddonCategory.BATTERY, toy)) {
+        AddonId.BATTERY_LEVEL -> bar
+        AddonId.BINARY_BATTERY -> binary
+        else -> null
+    }
+
+    /** The addon of [category] that [on] has switched on for [toy], or null for none. */
+    fun active(on: Map<AddonId, Set<ToyId>>, category: AddonCategory, toy: ToyId): AddonId? =
+        AddonId.entries.firstOrNull { it.category == category && toy in on[it].orEmpty() }
+
+    /** [current] with [addon] switched on or off for [toy], and the rest of its category off if on. */
+    internal fun withAddon(
+        current: Map<AddonId, Set<ToyId>>,
+        addon: AddonId,
+        toy: ToyId,
+        on: Boolean,
+    ): Map<AddonId, Set<ToyId>> = AddonId.entries.associateWith { a ->
+        val toys = current[a].orEmpty()
+        when {
+            a == addon -> if (on) toys + toy else toys - toy
+            on && a.category == addon.category -> toys - toy
+            else -> toys
+        }
+    }
+
+    /**
+     * [on] with at most one addon per category on each toy: the first in [AddonId] order stays.
+     * Only matters for settings saved before this rule.
+     */
+    internal fun onePerCategory(on: Map<AddonId, Set<ToyId>>): Map<AddonId, Set<ToyId>> =
+        AddonId.entries.associateWith { addon ->
+            on[addon].orEmpty().filterTo(mutableSetOf()) { toy -> active(on, addon.category, toy) == addon }
+        }
 
     fun updatePulse(transform: (PulseSettings) -> PulseSettings) {
         val s = _pulse.updateAndGet { transform(it).normalized() }
@@ -270,6 +375,15 @@ object AddonPreferences {
             putInt(KEY_BATTERY_BRIGHTNESS, s.brightness.coerceIn(1, 100))
             putInt(KEY_BATTERY_EMPTY_BRIGHTNESS, s.emptyBrightness.coerceIn(0, 100))
             putBoolean(KEY_BATTERY_FADE, s.fadeHighestDot)
+        }
+    }
+
+    fun updateBinaryBattery(transform: (BinaryBatterySettings) -> BinaryBatterySettings) {
+        val s = _binaryBattery.updateAndGet(transform)
+        prefs?.edit {
+            putString(KEY_BINARY_EDGE, s.edge.name)
+            putInt(KEY_BINARY_ACTIVE, s.activeBrightness.coerceIn(1, 100))
+            putInt(KEY_BINARY_INACTIVE, s.inactiveBrightness.coerceIn(0, 100))
         }
     }
 

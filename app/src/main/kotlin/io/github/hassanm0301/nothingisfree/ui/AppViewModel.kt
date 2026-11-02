@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.battery.BatteryLevel
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
@@ -11,6 +12,7 @@ import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
+import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
@@ -67,8 +69,14 @@ class AppViewModel : ViewModel() {
 
     fun updateBattery(transform: (BatterySettings) -> BatterySettings) = AddonPreferences.updateBattery(transform)
 
-    /** The phone's battery level, 0..100 (null if unknown), followed while a screen shows it. */
-    val batteryPercent: StateFlow<Int?> = BatteryLevel.changes(NothingIsFreeApp.instance)
+    /** Binary battery addon settings, shared by every toy it is on for. */
+    val binaryBattery: StateFlow<BinaryBatterySettings> = AddonPreferences.binaryBattery
+
+    fun updateBinaryBattery(transform: (BinaryBatterySettings) -> BinaryBatterySettings) =
+        AddonPreferences.updateBinaryBattery(transform)
+
+    /** The phone's battery (null if unknown), followed while a screen shows it. */
+    val batteryState: StateFlow<BatteryState?> = BatteryLevel.changes(NothingIsFreeApp.instance)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BatteryLevel.read(NothingIsFreeApp.instance))
 
     /** Digital clock toy options; the toy redraws as soon as they change. */

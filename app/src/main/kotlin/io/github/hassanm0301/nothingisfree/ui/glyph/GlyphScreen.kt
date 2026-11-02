@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
 import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonCategory
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
@@ -40,6 +41,7 @@ import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
 import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
+import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.screenHeader
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
@@ -140,7 +142,8 @@ private fun GlyphLists(
             "This phone has no Glyph Matrix, so toys only run as previews here. Tap one to try it."
         }
         GlyphSection.ADDONS ->
-            "Addons draw on top of any toy, switched on from each toy's page. Tap one for its settings."
+            "Addons draw on top of any toy, switched on from each toy's page, one of each category " +
+                "per toy. Tap one for its settings."
     }
 
     NothingScreen(insets) {
@@ -169,14 +172,17 @@ private fun GlyphLists(
                     leading = { ToyMatrix(face, now, level, Modifier.size(72.dp), battery) },
                 )
             }
-            GlyphSection.ADDONS -> items(AddonId.entries, key = { it.name }) { addon ->
-                val on = ToyId.entries.filter { it in addons[addon].orEmpty() }
-                ListCard(
-                    title = addon.title,
-                    body = addon.summary,
-                    tags = listOf(if (on.isEmpty()) "Off" else "On · " + on.joinToString(" · ") { it.title }),
-                    onClick = { onOpen(GlyphPage.Addon(addon)) },
-                )
+            GlyphSection.ADDONS -> AddonCategory.entries.forEach { category ->
+                item(key = "category/${category.name}") { SectionHeader(category.title) }
+                items(AddonId.entries.filter { it.category == category }, key = { it.name }) { addon ->
+                    val on = ToyId.entries.filter { it in addons[addon].orEmpty() }
+                    ListCard(
+                        title = addon.title,
+                        body = addon.summary,
+                        tags = listOf(if (on.isEmpty()) "Off" else "On · " + on.joinToString(" · ") { it.title }),
+                        onClick = { onOpen(GlyphPage.Addon(addon)) },
+                    )
+                }
             }
         }
     }

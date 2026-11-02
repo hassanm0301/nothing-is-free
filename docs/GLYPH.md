@@ -37,17 +37,21 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
     toy stayed blank and the old one's `unInit` tore down the shared connection.
   - `RoundMatrix` – the round LED mask every face draws inside.
 - `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on per toy:
-  - `AddonPreferences` – which toys each addon is on for, and the pulse and battery settings
-    (`PulseSettings`: steps, repeat, battery saver; `BatterySettings`), persisted.
+  - `AddonPreferences` – the addons (`AddonId`) and their categories (`AddonCategory`), which
+    toys each is on for (one per category), and the pulse and battery settings (`PulseSettings`:
+    steps, repeat, battery saver; `BatterySettings`; `BinaryBatterySettings`), persisted.
   - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, battery, …)`,
     the full frame a toy shows: face plus addons. The toy services and the in-app previews both
     draw through it, so a preview is exactly what the matrix shows.
   - `PulseWave` – the ring level over a run of `PulseStep`s; `MinuteCheck`, battery saver's
     once-a-minute look at the notifications.
-  - `BatteryBar` – the battery level's dots; `AddonLayout`, where each addon draws on a face (the
-    bar, and the pulse ring around it), worked out once per face rather than per frame.
-- `core/battery/BatteryLevel` – the phone's charge from the sticky `ACTION_BATTERY_CHANGED`
-  broadcast: `read()` for the toys, `changes()` for the app's screens.
+  - `BatteryBar` – the battery level's dots; `BinaryBattery` – the binary battery's 5x2 block.
+  - `AddonLayout` – where each addon draws on a face (the battery addon, and the pulse ring
+    around it), worked out once per face rather than per frame; `BatteryGauge`, a battery addon's
+    settings with the battery to show; `EdgeBlock`, the edge lines both battery addons sit on.
+- `core/battery/BatteryLevel` – the phone's battery (`BatteryState`: charge, charging, battery
+  saver) from the sticky `ACTION_BATTERY_CHANGED` broadcast and `PowerManager`: `read()` for the
+  toys, `changes()` for the app's screens.
 
 ## SDK facts (read from the 2.0 AAR)
 - `Glyph.DEVICE_*` are `Build.MODEL` strings, not codenames: Phone (4a) Pro is `A069P`
@@ -115,6 +119,17 @@ No notification access is needed unless the notification pulse is switched on fo
 Addons draw on top of any toy, only outside the area its face occupies, and each is switched on
 per toy from that toy's page (its **Addons** section). In the app, the **Glyph** tab's **Addons**
 sub-tab lists them; tapping one opens its settings and a **Test on phone** button.
+
+Each addon belongs to a category (`AddonCategory`), and a toy runs at most one addon of each:
+switching one on for a toy switches the other of its category off there (`AddonPreferences.
+setEnabled`). The Addons list and each toy's Addons section group them by category. Settings saved
+with two of a category on keep the first, in `AddonId` order. More categories can be added to the
+enum; the lists follow it.
+
+| Category | Addons |
+| --- | --- |
+| Notification | Notification pulse |
+| Battery | Battery level, Binary battery |
 
 ### Notification pulse
 When an alerting notification arrives, the outer ring of the matrix (the edge LEDs the face leaves
@@ -206,9 +221,40 @@ every toy; there is no permission to grant.
 
 - `glyph/addon/BatteryBar` – which LEDs make the bar and in what order they light (`cells`), how
   many are lit (`lit`), how full the highest one is (`highestDotCharge`), and `draw`.
-- `glyph/addon/AddonLayout` (in `BatteryBar.kt`) – the bar and the pulse ring for a face.
+- `glyph/addon/AddonLayout` – the bar and the pulse ring for a face.
 - `core/battery/BatteryLevel` – `read()` for the toys; `changes()`, a receiver-backed flow, for
   the app's screens while they show.
+
+### Binary battery
+The exact percentage in binary-coded decimal on a 5x2 block at one edge, read like the
+[Binary clock](#binary-clock), with two status dots. In the Battery category with Battery level, so
+a toy shows one or the other. Off for every toy to begin with; no permission to grant.
+
+- **Reading it** – one line is the tens (0..10), the other the units (0..9), each as bits worth 8,
+  4, 2 and 1, then a status dot. Add up the lit bits of each line. The tens line's status dot is
+  lit while charging (charging, or full on the charger), the units line's while battery saver is
+  on. 73% charging is `0111 1` over `0011 0`; 100% is `1010` over `0000`.
+- **Edge** – left (default), right, top or bottom. At the top or bottom the lines are rows on the
+  outermost two lines, tens above units, bits left to right and the status dot on the right; on a
+  side they are columns, tens left of units, bits top to bottom and the status dot at the bottom.
+  On the 13x13 matrix the block takes the middle five of each line (e.g. columns 0–1, rows 4–8 on
+  the left); on a 25x25, the middle five of its outermost line.
+- **When it doesn't fit** – the Digital clock's digits take rows 1–11, so there is no room for a
+  second row at the top or bottom. On a face like that the block goes on the first edge of left,
+  right, top, bottom that fits (`BinaryBattery.placement`), and the toy's page and the addon's page
+  say so. The Binary clock leaves room on every edge.
+- **Set / clear bit brightness** – 1..100 % (default 100 %) and 0..100 % (default 10 %). The status
+  dots use the same two.
+- **With the notification pulse** – the ring leaves out the block's dots, as with Battery level.
+- **When it updates** – like Battery level: read with the minute's repaint (and `EVENT_AOD` and
+  settings changes), never per pulse frame. Charging and battery saver come from the same read,
+  so they too show within a minute. `PowerManager.isPowerSaveMode` is read along with the sticky
+  battery broadcast.
+- In the app, the addon's page has a preview with a level slider and **Charging** / **Battery
+  saver** chips (they only change the preview).
+
+- `glyph/addon/BinaryBattery` – where the block goes (`placement`, `cells`), which dots are on
+  (`dots`), and `draw`.
 
 ## Next steps
 - `GlyphMatrixController : GlyphController` for in-app frames (`setAppMatrixFrame`, needs

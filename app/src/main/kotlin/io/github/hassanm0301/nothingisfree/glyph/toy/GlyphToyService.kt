@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
  *
  * A toy only names itself ([toyId]) and its face ([faces]). The base runs the [ToyLoop], repaints
  * on each AOD tick, and adds the addons switched on for the toy in [AddonPreferences]: the
- * notification pulse and the battery level.
+ * notification pulse and a battery addon.
  */
 abstract class GlyphToyService : Service() {
 
@@ -102,7 +102,7 @@ abstract class GlyphToyService : Service() {
             is24Hour = { DateFormat.is24HourFormat(this) },
             // Held for what is left of a running pulse, and let go when it ends or is switched off.
             keepAwake = { forMs -> if (forMs != null) wakeLock.acquire(forMs) else releaseWakeLock() },
-            batteryLevel = { BatteryLevel.read(this) },
+            batteryState = { BatteryLevel.read(this) },
         )
         loop = toyLoop
         job = scope.launch {
@@ -112,8 +112,7 @@ abstract class GlyphToyService : Service() {
                 AddonPreferences.pulse,
                 RecentNotifications.lastAlertAt,
                 RecentNotifications.anyShowing,
-                AddonPreferences.enabledFlow(AddonId.BATTERY_LEVEL, toyId),
-                AddonPreferences.battery,
+                AddonPreferences.batteryLook(toyId),
             )
         }
     }

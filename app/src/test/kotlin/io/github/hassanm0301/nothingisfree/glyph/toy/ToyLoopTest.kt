@@ -1,10 +1,12 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
+import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
@@ -13,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -62,7 +65,9 @@ class ToyLoopTest {
         loop: ToyLoop = this@ToyLoopTest.loop,
         batteryOn: Flow<Boolean> = MutableStateFlow(false),
         battery: Flow<BatterySettings> = MutableStateFlow(BatterySettings()),
-    ) = launch { loop.run(faces, pulseOn, pulse, alertAt, showing, batteryOn, battery) }
+    ) = launch {
+        loop.run(faces, pulseOn, pulse, alertAt, showing, combine(batteryOn, battery) { on, look -> look.takeIf { on } })
+    }
 
     /** The phone's battery level as the loop reads it, and how many times it has. */
     private var batteryPercent: Int? = 60
@@ -71,7 +76,7 @@ class ToyLoopTest {
         show = { frames.trySend(it) },
         is24Hour = { true },
         clock = clock,
-        batteryLevel = { batteryReads++; batteryPercent },
+        batteryState = { batteryReads++; batteryPercent?.let { BatteryState(it) } },
     )
 
     /** The bottom row, where these tests put the battery bar, clear of the [top] ring cell. */
@@ -414,6 +419,39 @@ class ToyLoopTest {
         assertEquals(255, later[top.first, top.second])
         repeat(5) { nextFrame() }
         assertEquals(2, batteryReads)
+        job.cancel()
+    }
+
+    @Test
+    fun `shows the binary battery with its status dots, read with the clock`() = runBlocking {
+        var state = BatteryState(73, charging = true)
+        var reads = 0
+        val loop = ToyLoop(show = { frames.trySend(it) }, is24Hour = { true }, clock = clock, batteryState = { reads++; state })
+        val look = BinaryBatterySettings(edge = BatteryEdge.LEFT, inactiveBrightness = 0)
+        val job = launch {
+            loop.run(
+                flowOf(digital),
+                MutableStateFlow(false),
+                MutableStateFlow(PulseSettings()),
+                MutableStateFlow(null),
+                MutableStateFlow(false),
+                MutableStateFlow(look),
+            )
+        }
+        fun DotMatrix.column(x: Int) = (4..8).map { this[x, it] }
+        val first = nextFrame()
+        // Tens 7 (0111) and charging; units 3 (0011), battery saver off.
+        assertEquals(listOf(0, 255, 255, 255, 255), first.column(0))
+        assertEquals(listOf(0, 0, 255, 255, 0), first.column(1))
+        assertEquals(digital.frame(time, true, battery = BatteryGauge(look, state)).cells(), first.cells())
+        assertIdle()
+
+        state = BatteryState(100, powerSave = true)
+        loop.refresh()
+        val full = nextFrame()
+        assertEquals(listOf(255, 0, 255, 0, 0), full.column(0))
+        assertEquals(listOf(0, 0, 0, 0, 255), full.column(1))
+        assertEquals(2, reads)
         job.cancel()
     }
 
