@@ -2,13 +2,13 @@ package io.github.hassanm0301.nothingisfree.volume
 
 /**
  * When the label shows and what it sits next to. The service calls [changed] on each volume
- * change, then [tick] every [TICK_MS] with whether the volume bar is on screen, until a tick
- * returns [Step.HIDE].
+ * change, and [appeared] when a window that may be the volume popup opens, then [tick] every
+ * [TICK_MS] with whether the volume bar is on screen, until a tick returns [Step.HIDE].
  *
  * The label goes with the bar: it shows once the bar does and hides soon after the bar goes. Once
  * the bar has been found, a change without the bar (an app setting the volume quietly) shows
- * nothing. Until then, finding it may simply not work on this phone, so the label shows at a
- * stand-in spot for [FALLBACK_MS] after the last change.
+ * nothing. Until then, finding it may simply not work on this phone, so after a change the label
+ * shows at a stand-in spot for [FALLBACK_MS]. A window opening never brings the stand-in.
  */
 class LabelTimeline {
 
@@ -35,6 +35,9 @@ class LabelTimeline {
     private var mode = Mode.HIDDEN
     private var missed = 0
 
+    /** Shown for a window opening, not a change: only ever beside the bar. */
+    private var barOnly = false
+
     /** The bar has been found at least once, so finding it works on this phone. */
     var barSeen: Boolean = false
         private set
@@ -42,6 +45,18 @@ class LabelTimeline {
     /** The volume changed at [now] (milliseconds, any monotonic clock). */
     fun changed(now: Long) {
         changedAt = now
+        barOnly = false
+    }
+
+    /**
+     * A window that may be the volume popup opened at [now] without a change: Android opens the
+     * popup on the first press without changing the volume while nothing is playing. The label
+     * shows if the bar turns up, never at the stand-in spot. Ignored while a label is due anyway.
+     */
+    fun appeared(now: Long) {
+        if (changedAt != null) return
+        changedAt = now
+        barOnly = true
     }
 
     /** Ticks happen [TICK_MS] apart at [now]; [barFound] says whether the bar is on screen. */
@@ -58,7 +73,7 @@ class LabelTimeline {
             Mode.BAR -> if (++missed >= BAR_GONE_TICKS) hide() else Step.KEEP
             Mode.FALLBACK -> if (since >= FALLBACK_MS) hide() else Step.FALLBACK
             Mode.HIDDEN -> when {
-                !barSeen -> {
+                !barSeen && !barOnly -> {
                     mode = Mode.FALLBACK
                     Step.FALLBACK
                 }
@@ -75,6 +90,7 @@ class LabelTimeline {
         changedAt = null
         mode = Mode.HIDDEN
         missed = 0
+        barOnly = false
         return Step.HIDE
     }
 
