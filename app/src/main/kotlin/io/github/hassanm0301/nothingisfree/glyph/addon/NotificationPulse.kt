@@ -7,7 +7,8 @@ import java.time.LocalTime
 /**
  * The notification pulse addon: the outer ring of the round matrix breathes (see [PulseWave]) for
  * a while after a notification. Works on any [ToyFace]: the ring is the matrix edge minus
- * whatever the face occupies, and minus the battery addon's dots when one is on too.
+ * whatever the face occupies, and minus the battery addon's dots when one is on too (bar the
+ * battery ring, which shares the whole edge: the pulse covers it while it plays).
  */
 object NotificationPulse {
 

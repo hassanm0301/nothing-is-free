@@ -54,8 +54,9 @@ fun batteryGauge(viewModel: AppViewModel): BatteryGauge? {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val bar by viewModel.battery.collectAsStateWithLifecycle()
     val binary by viewModel.binaryBattery.collectAsStateWithLifecycle()
+    val ring by viewModel.batteryRing.collectAsStateWithLifecycle()
     val state by viewModel.batteryState.collectAsStateWithLifecycle()
-    val look = AddonPreferences.batteryLook(addons, bar, binary) ?: return null
+    val look = AddonPreferences.batteryLook(addons, bar, binary, ring) ?: return null
     return state?.let { BatteryGauge(look, it) }
 }
 

@@ -40,13 +40,15 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
 - `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on for all of them:
   - `AddonPreferences` – the addons (`AddonId`) and their categories (`AddonCategory`), which are
     on (one per category), and the pulse and battery settings (`PulseSettings`:
-    steps, repeat, battery saver; `BatterySettings`; `BinaryBatterySettings`), persisted.
+    steps, repeat, battery saver; `BatterySettings`; `BinaryBatterySettings`;
+    `BatteryRingSettings`), persisted.
   - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, battery, …)`,
     the full frame a toy shows: face plus addons. The toy services and the in-app previews both
     draw through it, so a preview is exactly what the matrix shows.
   - `PulseWave` – the ring level over a run of `PulseStep`s; `MinuteCheck`, battery saver's
     once-a-minute look at the notifications.
-  - `BatteryBar` – the battery level's dots; `BinaryBattery` – the binary battery's 5x2 block.
+  - `BatteryBar` – the battery level's dots; `BinaryBattery` – the binary battery's 5x2 block;
+    `BatteryRing` – the battery ring's dots, all around the edge.
   - `AddonLayout` – where each addon draws on a face (the battery addon, and the pulse ring
     around it), worked out once per face rather than per frame; `BatteryGauge`, a battery addon's
     settings with the battery to show; `EdgeBlock`, the edge lines both battery addons sit on.
@@ -276,6 +278,32 @@ one or the other is on. Off to begin with; no permission to grant.
 
 - `glyph/addon/BinaryBattery` – where the block goes (`placement`, `cells`), which dots are on
   (`dots`), and `draw`.
+
+### Battery ring
+The outermost line of LEDs, all the way around the matrix, shows the phone's charge. In the
+Battery category, so at most one of it, Battery level and Binary battery is on. Off to begin with;
+no permission to grant.
+
+- **Reading it** – full, the whole ring is lit. As the charge drops it empties from the top: the
+  top dot goes out first, then the used-up part sweeps round the ring, so at 50% one half is lit
+  (the left half, draining clockwise). Each dot is an equal share of the charge and stays lit until
+  its share is used up: on the 13x13 matrix the ring is 36 dots, about 2.8% each, and the last one
+  (just beside the top) shows down to 1%.
+- **Drains** – **clockwise** (default) or **anticlockwise**, always starting at the top.
+- **Charge / used-up brightness** – 1..100 % (default 100 %) and 0..100 % (default 10 %), as for
+  Battery level.
+- **Where it goes** – the matrix edge less what the face occupies: the same LEDs as the pulse ring.
+- **With the notification pulse** – they share the edge, so unlike the other battery addons the
+  pulse ring keeps the whole edge (`AddonLayout`) and covers the ring while it plays; the level
+  shows again as soon as the pulse ends.
+- **When it updates** – like Battery level: read with the minute's repaint (and `EVENT_AOD` and
+  settings changes), never per pulse frame.
+- In the app, the addon's page has a preview with a level slider (it only moves the preview).
+- Saved as `battery_ring_direction`, `battery_ring_brightness_percent` and
+  `battery_ring_empty_brightness_percent`.
+
+- `glyph/addon/BatteryRing` – which LEDs make the ring and in what order they light (`cells`,
+  sorted by angle from the top), how many are lit (`lit`), and `draw`.
 
 ## Next steps
 - `GlyphMatrixController : GlyphController` for in-app frames (`setAppMatrixFrame`, needs
