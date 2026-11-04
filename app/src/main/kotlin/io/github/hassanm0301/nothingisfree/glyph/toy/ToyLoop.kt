@@ -25,7 +25,7 @@ import java.time.ZoneId
 
 /**
  * Drives any Glyph Toy: repaints its face on each minute, on [refresh], at once when an input
- * changes, and every frame while a notification pulse is running for it. Frames are drawn through
+ * changes, and every frame while a notification pulse is running. Frames are drawn through
  * [frame], like the in-app previews. SDK-free; [show] is where frames leave for the hardware, and
  * [keepAwake] is told how long a pulse that just started still has to run (null once none is), so
  * it can keep the CPU up meanwhile. [batteryState] reads the phone's battery (null if unknown)
@@ -54,8 +54,8 @@ class ToyLoop(
 
     /**
      * Runs until cancelled. [faces] re-emits when the toy's options change; [pulseOn] is whether
-     * the notification pulse is on for this toy, and [battery] the settings of the battery addon on
-     * for it (null for none).
+     * the notification pulse is on, and [battery] the settings of the battery addon that is on
+     * (null for none). Addons are switched for every toy alike.
      * Any new input restarts the loop, so it shows at once and a new alert starts its pulse
      * straight away; except with battery saver, which reads [lastAlertAt] and [anyShowing] only on
      * the first repaint of each minute.
@@ -125,7 +125,7 @@ class ToyLoop(
 
     /**
      * What to paint until an input changes. [alertAt] is the last alert when it starts pulses
-     * itself: null while the pulse is off for the toy or on battery saver.
+     * itself: null while the pulse is off or on battery saver.
      */
     private data class Scene(
         val layout: Layout,

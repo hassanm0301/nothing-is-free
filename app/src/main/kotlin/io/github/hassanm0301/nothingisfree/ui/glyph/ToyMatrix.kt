@@ -19,7 +19,6 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
-import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
 import kotlinx.coroutines.delay
 import java.time.LocalTime
@@ -49,14 +48,14 @@ fun ToyMatrix(
     DotMatrixCanvas(frame, modifier, isDot = face::isLed)
 }
 
-/** The battery addon on [toy] showing the phone's battery, or null while none is on for the toy. */
+/** The battery addon that is on, showing the phone's battery, or null while none is. */
 @Composable
-fun batteryGauge(viewModel: AppViewModel, toy: ToyId): BatteryGauge? {
+fun batteryGauge(viewModel: AppViewModel): BatteryGauge? {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val bar by viewModel.battery.collectAsStateWithLifecycle()
     val binary by viewModel.binaryBattery.collectAsStateWithLifecycle()
     val state by viewModel.batteryState.collectAsStateWithLifecycle()
-    val look = AddonPreferences.batteryLook(addons, toy, bar, binary) ?: return null
+    val look = AddonPreferences.batteryLook(addons, bar, binary) ?: return null
     return state?.let { BatteryGauge(look, it) }
 }
 

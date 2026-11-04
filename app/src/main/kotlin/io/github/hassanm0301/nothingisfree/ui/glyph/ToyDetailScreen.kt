@@ -33,7 +33,6 @@ import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
 import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
 import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
-import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.StatusDot
 import io.github.hassanm0301.nothingisfree.ui.components.detailHeader
@@ -41,8 +40,8 @@ import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 
 /**
- * One toy's settings: what it shows right now, a Preview button, its own options, and which
- * addons run on it.
+ * One toy's settings: what it shows right now, a Preview button, its own options, and the addons
+ * it shows with them. Addons are switched for every toy at once, on their own pages, not here.
  */
 @Composable
 fun ToyDetailScreen(
@@ -63,9 +62,9 @@ fun ToyDetailScreen(
     var previewing by rememberSaveable { mutableStateOf(false) }
 
     val face = remember(toy, digitalClock, binaryClock) { toy.face(PREVIEW_SIZE, digitalClock, binaryClock) }
-    val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
+    val pulseOn = AddonId.NOTIFICATION_PULSE in addons
     val pulse by rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
-    val battery = batteryGauge(viewModel, toy)
+    val battery = batteryGauge(viewModel)
 
     NothingScreen(insets) {
         detailHeader("Glyph", onBack, kicker = "Glyph toy", title = toy.title, body = toy.summary)
@@ -100,7 +99,8 @@ fun ToyDetailScreen(
         item {
             SectionHeader("Addons")
             Text(
-                "One per category: switching one on switches off the other of its kind on this toy.",
+                "Addons are switched on or off for every toy at once, one per category: in Glyph › " +
+                    "Addons, or on an addon's own page. Tap one to open it.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = NothingTheme.colors.muted,
             )
@@ -121,9 +121,10 @@ fun ToyDetailScreen(
                         },
                         modifier = Modifier.clickable { onOpenAddon(addon) },
                         trailing = {
-                            NothingSwitch(
-                                checked = toy in addons[addon].orEmpty(),
-                                onCheckedChange = { viewModel.setAddon(addon, toy, it) },
+                            val on = addon in addons
+                            MonoLabel(
+                                if (on) "On" else "Off",
+                                color = if (on) NothingTheme.colors.accent else NothingTheme.colors.muted,
                             )
                         },
                     )

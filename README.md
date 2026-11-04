@@ -6,8 +6,8 @@ Three tabs:
   - *Toys*: **Digital clock** (adjustable brightness) and **Binary clock** (HH:MM in BCD, dot or
     2x2 square bits, adjustable active/inactive brightness). Each opens a settings page with a
     live matrix and a **Preview** sheet: scrub the time of day and simulate a notification.
-  - *Addons*: drawn on top of any toy, switched on from each toy's page, in categories with one
-    addon of each per toy. *Notification* – **Notification pulse**:
+  - *Addons*: drawn on top of whichever toy is showing, in categories with one addon of each on
+    at a time, switched once for every toy from the Addons list. *Notification* – **Notification pulse**:
     the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of
     times after a notification, with a battery saver that only checks once a minute, with the clock.
     *Battery* – **Battery level**: five dots on the top, bottom, left or right edge show the

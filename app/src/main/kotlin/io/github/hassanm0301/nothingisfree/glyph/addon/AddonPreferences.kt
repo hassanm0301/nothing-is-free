@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.updateAndGet
 
 /**
- * What an addon shows. A toy runs at most one addon of each category, in the order the Glyph tab
- * lists them.
+ * What an addon shows. At most one addon of each category is on at a time, in the order the Glyph
+ * tab lists them.
  */
 enum class AddonCategory(val title: String) {
     NOTIFICATION("Notification"),
@@ -24,8 +24,8 @@ enum class AddonCategory(val title: String) {
 }
 
 /**
- * Addons draw on top of any Glyph Toy. Each is switched on per toy, at most one per [category].
- * Persisted by [name], so don't rename entries.
+ * Addons draw on top of whichever Glyph Toy is showing. Each is switched on or off once, for every
+ * toy, and at most one per [category] is on. Persisted by [name], so don't rename entries.
  */
 enum class AddonId(val title: String, val summary: String, val category: AddonCategory) {
     NOTIFICATION_PULSE(
@@ -191,11 +191,8 @@ sealed interface BatteryLook {
  * `NothingIsFreeApp.onCreate`.
  */
 object AddonPreferences {
-    /**
-     * Where each addon starts out on: the pulse on the Digital clock, as before addons existed.
-     * Others start off everywhere.
-     */
-    private val defaults = mapOf(AddonId.NOTIFICATION_PULSE to setOf(ToyId.DIGITAL_CLOCK))
+    /** The addons on to begin with: the pulse, which the clock had built in before addons existed. */
+    private val defaults = setOf(AddonId.NOTIFICATION_PULSE)
 
     private const val KEY_STEPS = "pulse_steps"
     private const val KEY_REPEAT_COUNT = "pulse_repeat"
@@ -218,7 +215,10 @@ object AddonPreferences {
     private const val KEY_LEGACY_WINDOW = "pulse_window_seconds"
     private const val LEGACY_PERIOD_MS = 2_000L
 
-    private fun keyToys(addon: AddonId) = "toys_${addon.name.lowercase()}"
+    private fun keyOn(addon: AddonId) = "on_${addon.name.lowercase()}"
+
+    /** Before addons were switched for every toy at once: the names of the toys each was on for. */
+    private fun keyLegacyToys(addon: AddonId) = "toys_${addon.name.lowercase()}"
 
     private var prefs: SharedPreferences? = null
     private val _enabled = MutableStateFlow(defaults)
@@ -226,8 +226,8 @@ object AddonPreferences {
     private val _battery = MutableStateFlow(BatterySettings())
     private val _binaryBattery = MutableStateFlow(BinaryBatterySettings())
 
-    /** For each addon, the toys it is switched on for. A toy is in at most one per category. */
-    val enabled: StateFlow<Map<AddonId, Set<ToyId>>> = _enabled.asStateFlow()
+    /** The addons switched on, at most one per category. Each draws on whichever toy is showing. */
+    val enabled: StateFlow<Set<AddonId>> = _enabled.asStateFlow()
 
     /** The notification pulse's settings. */
     val pulse: StateFlow<PulseSettings> = _pulse.asStateFlow()
@@ -242,11 +242,13 @@ object AddonPreferences {
         val p = context.getSharedPreferences("glyph_addons", Context.MODE_PRIVATE)
         prefs = p
         _enabled.value = onePerCategory(
-            AddonId.entries.associateWith { addon ->
-                p.getStringSet(keyToys(addon), null)
-                    ?.mapNotNull { name -> ToyId.entries.firstOrNull { it.name == name } }?.toSet()
-                    ?: defaults[addon].orEmpty()
-            },
+            AddonId.entries.filter { addon ->
+                addonStartsOn(
+                    saved = if (p.contains(keyOn(addon))) p.getBoolean(keyOn(addon), false) else null,
+                    legacyToys = p.getStringSet(keyLegacyToys(addon), null),
+                    default = addon in defaults,
+                )
+            }.toSet(),
         )
         val d = PulseSettings()
         _pulse.value = PulseSettings(
@@ -292,70 +294,50 @@ object AddonPreferences {
         return count.toInt()
     }
 
-    fun isEnabled(addon: AddonId, toy: ToyId): Boolean = toy in _enabled.value[addon].orEmpty()
+    fun isEnabled(addon: AddonId): Boolean = addon in _enabled.value
 
-    /** Whether [addon] is on for [toy], as it changes. */
-    fun enabledFlow(addon: AddonId, toy: ToyId): Flow<Boolean> =
-        enabled.map { toy in it[addon].orEmpty() }.distinctUntilChanged()
+    /** Whether [addon] is on, as it changes. */
+    fun enabledFlow(addon: AddonId): Flow<Boolean> = enabled.map { addon in it }.distinctUntilChanged()
 
     /**
-     * Switch [addon] on or off for [toy]. Switching it on switches off the other addon of its
-     * category on that toy, if one was on: a toy runs one addon per category.
+     * Switch [addon] on or off for every toy. Switching it on switches off the other addon of its
+     * category, if one was on: one addon per category.
      */
-    fun setEnabled(addon: AddonId, toy: ToyId, on: Boolean) {
-        val all = _enabled.updateAndGet { current -> withAddon(current, addon, toy, on) }
-        prefs?.edit {
-            AddonId.entries.forEach { a -> putStringSet(keyToys(a), all[a].orEmpty().map { it.name }.toSet()) }
-        }
+    fun setEnabled(addon: AddonId, on: Boolean) {
+        val all = _enabled.updateAndGet { current -> withAddon(current, addon, on) }
+        prefs?.edit { AddonId.entries.forEach { a -> putBoolean(keyOn(a), a in all) } }
     }
 
     /**
-     * The battery addon on for [toy], as its settings (null with none), as either changes. The
-     * toy services draw it; see [BatteryLook].
+     * The battery addon that is on, as its settings (null with none), as either changes. The toy
+     * services draw it; see [BatteryLook].
      */
-    fun batteryLook(toy: ToyId): Flow<BatteryLook?> =
-        combine(enabled, battery, binaryBattery) { on, bar, binary -> batteryLook(on, toy, bar, binary) }
+    fun batteryLook(): Flow<BatteryLook?> =
+        combine(enabled, battery, binaryBattery) { on, bar, binary -> batteryLook(on, bar, binary) }
             .distinctUntilChanged()
 
-    /** The settings of the battery addon that [on] has switched on for [toy], or null for none. */
-    fun batteryLook(
-        on: Map<AddonId, Set<ToyId>>,
-        toy: ToyId,
-        bar: BatterySettings,
-        binary: BinaryBatterySettings,
-    ): BatteryLook? = when (active(on, AddonCategory.BATTERY, toy)) {
-        AddonId.BATTERY_LEVEL -> bar
-        AddonId.BINARY_BATTERY -> binary
-        else -> null
-    }
-
-    /** The addon of [category] that [on] has switched on for [toy], or null for none. */
-    fun active(on: Map<AddonId, Set<ToyId>>, category: AddonCategory, toy: ToyId): AddonId? =
-        AddonId.entries.firstOrNull { it.category == category && toy in on[it].orEmpty() }
-
-    /** [current] with [addon] switched on or off for [toy], and the rest of its category off if on. */
-    internal fun withAddon(
-        current: Map<AddonId, Set<ToyId>>,
-        addon: AddonId,
-        toy: ToyId,
-        on: Boolean,
-    ): Map<AddonId, Set<ToyId>> = AddonId.entries.associateWith { a ->
-        val toys = current[a].orEmpty()
-        when {
-            a == addon -> if (on) toys + toy else toys - toy
-            on && a.category == addon.category -> toys - toy
-            else -> toys
+    /** The settings of the battery addon in [on], or null for none. */
+    fun batteryLook(on: Set<AddonId>, bar: BatterySettings, binary: BinaryBatterySettings): BatteryLook? =
+        when (active(on, AddonCategory.BATTERY)) {
+            AddonId.BATTERY_LEVEL -> bar
+            AddonId.BINARY_BATTERY -> binary
+            else -> null
         }
-    }
+
+    /** The addon of [category] in [on], or null for none. */
+    fun active(on: Set<AddonId>, category: AddonCategory): AddonId? =
+        AddonId.entries.firstOrNull { it.category == category && it in on }
+
+    /** [current] with [addon] switched on or off, and the rest of its category off if on. */
+    internal fun withAddon(current: Set<AddonId>, addon: AddonId, on: Boolean): Set<AddonId> =
+        if (on) current.filterTo(mutableSetOf()) { it.category != addon.category } + addon else current - addon
 
     /**
-     * [on] with at most one addon per category on each toy: the first in [AddonId] order stays.
-     * Only matters for settings saved before this rule.
+     * [on] with at most one addon per category: the first in [AddonId] order stays. Only matters
+     * for settings carried over from per-toy switches, where two toys could each have had their own.
      */
-    internal fun onePerCategory(on: Map<AddonId, Set<ToyId>>): Map<AddonId, Set<ToyId>> =
-        AddonId.entries.associateWith { addon ->
-            on[addon].orEmpty().filterTo(mutableSetOf()) { toy -> active(on, addon.category, toy) == addon }
-        }
+    internal fun onePerCategory(on: Set<AddonId>): Set<AddonId> =
+        on.filterTo(mutableSetOf()) { addon -> active(on, addon.category) == addon }
 
     fun updatePulse(transform: (PulseSettings) -> PulseSettings) {
         val s = _pulse.updateAndGet { transform(it).normalized() }
@@ -394,3 +376,11 @@ object AddonPreferences {
         else -> default
     }
 }
+
+/**
+ * Whether an addon starts out on: as last [saved]; or, never switched since addons went global, on
+ * if it was on for any toy in [legacyToys] (toy names, from when each toy had its own switches);
+ * or else its [default].
+ */
+internal fun addonStartsOn(saved: Boolean?, legacyToys: Set<String>?, default: Boolean): Boolean =
+    saved ?: legacyToys?.let { names -> ToyId.entries.any { it.name in names } } ?: default

@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.map
  */
 class ClockToyService : GlyphToyService() {
 
-    override val toyId = ToyId.DIGITAL_CLOCK
-
     override fun faces(size: Int): Flow<ToyFace> =
         DigitalClockPreferences.settings.map { ClockFace(size, it) }
 }

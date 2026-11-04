@@ -19,8 +19,9 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   - `ToyFace` – what a toy draws on its own: `render(time, is24Hour)`, plus `occupies(x, y)`, the
     area it keeps for itself, so addons can draw around it.
   - `ToyId` – the toy registry, in the order the Glyph tab lists them.
-    `face(size, digital, binary)` builds a toy's face with its current options. Persisted by name
-    (addon settings), so don't rename entries.
+    `face(size, digital, binary)` builds a toy's face with its current options. Its names are in
+    the old per-toy addon settings, still read once (see [addons](#addons)), so don't rename
+    entries.
   - `ToyLoop` – the one SDK-free loop every toy runs: a frame each minute and on `refresh()`, one
     at once when the face, an addon switch, the last alert (unless on battery saver) or an addon's
     settings change, and 25 fps while a notification pulse is running. Draws through `frame()` (see
@@ -30,15 +31,15 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
     runs `ToyLoop`, pushes frames with `setMatrixFrame` (dropped frames are logged), forwards
     `EVENT_AOD` to `refresh()`, holds the pulse wake lock as `ToyLoop` asks, and gives it
     `BatteryLevel.read` for the battery level. Each toy only
-    gives its `toyId` and `faces(size)`, a flow that emits again when the toy's options change.
+    gives its `faces(size)`, a flow that emits again when the toy's options change.
   - `MatrixArbiter` – shares the SDK's singleton manager between toys: `init` for the first bound
     toy, `turnOff` + `unInit` after the last, and only the most recently bound toy draws. The
     Glyph service may bind a newly picked toy before unbinding the old one; without this the new
     toy stayed blank and the old one's `unInit` tore down the shared connection.
   - `RoundMatrix` – the round LED mask every face draws inside.
-- `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on per toy:
-  - `AddonPreferences` – the addons (`AddonId`) and their categories (`AddonCategory`), which
-    toys each is on for (one per category), and the pulse and battery settings (`PulseSettings`:
+- `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on for all of them:
+  - `AddonPreferences` – the addons (`AddonId`) and their categories (`AddonCategory`), which are
+    on (one per category), and the pulse and battery settings (`PulseSettings`:
     steps, repeat, battery saver; `BatterySettings`; `BinaryBatterySettings`), persisted.
   - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, battery, …)`,
     the full frame a toy shows: face plus addons. The toy services and the in-app previews both
@@ -65,7 +66,7 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
 
 ## Toys
 Each toy redraws once a minute and on `EVENT_AOD`, follows the phone's 12/24-hour setting, and
-takes any [addons](#addons) switched on for it. In the app, the **Glyph** tab's **Toys** sub-tab
+shows every [addon](#addons) that is switched on. In the app, the **Glyph** tab's **Toys** sub-tab
 lists them; tapping one opens its settings, with a **Preview** button.
 
 To use one on the Phone (4a) Pro: Settings > Glyph Interface > Flip to Glyph > Always-on Glyph
@@ -75,7 +76,7 @@ on the matrix straight away.
 ### Digital clock
 Hours over minutes in 3x5 digits on the 13x13 matrix (5x7 on a 25x25). The edge is left free for
 addons. Before addons this was the "Pulse clock", with the notification pulse built in; the pulse
-is now an addon, on for this toy by default.
+is now an addon, on by default.
 
 Options (`DigitalClockSettings`), applied to the matrix as soon as they change:
 - **Brightness** – of the digits, 1..100 % (default 100 %, the full brightness the clock always
@@ -113,18 +114,25 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
   settings change.
 - `glyph/toy/BinaryClockPreferences` – the settings, persisted.
 
-No notification access is needed unless the notification pulse is switched on for it.
+No notification access is needed unless the notification pulse is on.
 
 ## Addons
-Addons draw on top of any toy, only outside the area its face occupies, and each is switched on
-per toy from that toy's page (its **Addons** section). In the app, the **Glyph** tab's **Addons**
-sub-tab lists them; tapping one opens its settings and a **Test on phone** button.
+Addons draw on top of whichever toy is showing, only outside the area its face occupies. Each is
+switched on or off once, for every toy: there is no per-toy choice, so picking another toy on the
+phone keeps the same addons. In the app, the **Glyph** tab's **Addons** sub-tab lists them by
+category, each card with its switch; tapping one opens its settings, with the same switch at the
+top (and, for the pulse, a **Test on phone** button). A toy's page lists the addons as on or off
+and opens their pages, but has no switches of its own.
 
-Each addon belongs to a category (`AddonCategory`), and a toy runs at most one addon of each:
-switching one on for a toy switches the other of its category off there (`AddonPreferences.
-setEnabled`). The Addons list and each toy's Addons section group them by category. Settings saved
-with two of a category on keep the first, in `AddonId` order. More categories can be added to the
-enum; the lists follow it.
+Each addon belongs to a category (`AddonCategory`), and at most one addon of each is on: switching
+one on switches the other of its category off (`AddonPreferences.setEnabled`). More categories can
+be added to the enum; the lists follow it.
+
+Saved as `on_<addon>` (e.g. `on_binary_battery`), every addon's switch at once. Before this, each
+toy had its own switches (`toys_<addon>`, the names of the toys it was on for). Until addons are
+switched again, that is read as on if it was on for any toy, so nothing that showed before
+disappears; where that gives two of a category (say Battery level on one toy and Binary battery on
+the other), the first in `AddonId` order stays on.
 
 | Category | Addons |
 | --- | --- |
@@ -137,8 +145,8 @@ free) plays a pulse pattern you build from steps, a set number of times. Then th
 steady. The settings are shared by every toy. Every brightness in the app is 0..100 %, and every
 time goes in steps of 0.1 s.
 
-- **Per-toy switch** – on a toy's page. On for the Digital clock by default, as the old Pulse
-  clock was; off for the Binary clock. Switching it off mid-pulse stops the pulse at once.
+- **Switch** – on by default, as the old Pulse clock had it built in. Switching it off mid-pulse
+  stops the pulse at once.
 - **Steps** – up to 8 (`PulseSettings.MAX_STEPS`). Each has a brightness and a time to reach it,
   0.1–10 s; it eases (cosine in-out) from the brightness the step before reached, dark for the
   first. The last step is fixed at 0 % with only its time to set, so every run ends dark. Add steps
@@ -159,10 +167,10 @@ time goes in steps of 0.1 s.
 - **Notification access** – the app only learns about notifications through
   `GlyphNotificationListener`, shown in system settings as "Glyph notification pulse".
   Without access the ring never pulses.
-- **Wake lock** – while a pulse runs on a toy it is on for, `GlyphToyService` holds a partial
+- **Wake lock** – while a pulse runs, `GlyphToyService` holds a partial
   wake lock (not reference counted) for what is left of the pulse, as `ToyLoop` reports it, so the
   animation keeps running with the screen off. It is let go when the pulse ends, when the addon is
-  switched off for the toy, and when the toy stops. A toy without the pulse never takes it.
+  switched off, and when the toy stops. With the pulse off, no toy takes it.
 - **Test on phone** starts a pulse without waiting for a notification (at the next minute with
   battery saver).
 - In the app, the toy pages' live matrix follows the same settings, battery saver included; the
@@ -173,8 +181,8 @@ time goes in steps of 0.1 s.
   over the face.
 - `glyph/addon/PulseWave` – the ring level at any point of a run of steps. `MinuteCheck` there is battery
   saver: the first call each minute is the look, and it says when the latest pulse started.
-- `glyph/addon/AddonPreferences` – the per-toy switch and `PulseSettings`, persisted.
-- `glyph/toy/ToyLoop` – animates the ring at 25 fps while a pulse runs on a toy it is on for.
+- `glyph/addon/AddonPreferences` – the switch and `PulseSettings`, persisted.
+- `glyph/toy/ToyLoop` – animates the ring at 25 fps while a pulse runs.
 - `core/notifications/GlyphNotificationListener` – stamps `RecentNotifications` when an
   alerting notification arrives. Skipped: our own, ongoing (media, downloads), silent channels,
   ones Do Not Disturb blocks, and `FLAG_ONLY_ALERT_ONCE` updates to one already showing. Also
@@ -184,8 +192,8 @@ time goes in steps of 0.1 s.
 1. Install and open the app: Glyph > Addons > Notification pulse > **Grant access**, and allow
    notification access. On a sideloaded build Android may block this as a restricted setting:
    App info > ⋮ > Allow restricted settings, then try again.
-2. Open the toy you use (Glyph > Toys), switch the pulse on under **Addons**, and pick that toy
-   on the phone (see [toys](#toys)).
+2. Check the pulse is switched on (Glyph > Addons), and pick one of the app's toys on the phone
+   (see [toys](#toys)).
 3. Flip the phone. **Test on phone** starts a pulse without waiting for a notification.
 
 ### Battery level
@@ -193,7 +201,7 @@ A line of five dots on one edge of the matrix shows the phone's charge. Each dot
 lit until its share is used up: 81–100% lights all five, 1–20% one. The settings are shared by
 every toy; there is no permission to grant.
 
-- **Per-toy switch** – on a toy's page. Off for every toy to begin with.
+- **Switch** – off to begin with. Switching it on switches Binary battery off.
 - **Edge** – top (default), bottom, left or right: the outermost line of LEDs on that side. On the
   13x13 matrix that line is exactly five LEDs (e.g. the top row is x 4..8); on a 25x25, the bar
   takes the middle five of it. No face draws on the edge, so the bar never covers one.
@@ -228,7 +236,7 @@ every toy; there is no permission to grant.
 ### Binary battery
 The exact percentage in binary-coded decimal on a 5x2 block at one edge, read like the
 [Binary clock](#binary-clock), with two status dots. In the Battery category with Battery level, so
-a toy shows one or the other. Off for every toy to begin with; no permission to grant.
+one or the other is on. Off to begin with; no permission to grant.
 
 - **Reading it** – one line is the tens (0..10), the other the units (0..9), each as bits worth 8,
   4, 2 and 1, then a status dot. Add up the lit bits of each line. The tens line's status dot is
