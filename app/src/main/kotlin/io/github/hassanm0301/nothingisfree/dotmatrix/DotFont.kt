@@ -87,3 +87,30 @@ object DotFontSmall : DotTypeface {
 
     override operator fun get(c: Char): DotGlyph = glyphs[c] ?: blank
 }
+
+/**
+ * A digits-only font that lights as few LEDs as it can and still reads: 3x5 strokes with the
+ * corners left open, and a one-column `1`. About two thirds of the LEDs of [DotFontSmall], so the
+ * clock looks lighter and narrower. Anything else renders as a blank 3-wide cell.
+ */
+object DotFontMinimal : DotTypeface {
+    private fun g(vararg rows: String) = DotGlyph(rows.toList())
+
+    private val blank = g("...", "...", "...", "...", "...")
+
+    private val glyphs: Map<Char, DotGlyph> = mapOf(
+        '0' to g(".#.", "#.#", "#.#", "#.#", ".#."),
+        '1' to g("#", "#", "#", "#", "#"),
+        '2' to g("##.", "..#", ".#.", "#..", "###"),
+        '3' to g("##.", "..#", ".#.", "..#", "##."),
+        '4' to g("#..", "#.#", "###", "..#", "..#"),
+        '5' to g("###", "#..", "##.", "..#", "##."),
+        '6' to g(".##", "#..", "##.", "#.#", ".#."),
+        '7' to g("###", "..#", ".#.", ".#.", ".#."),
+        '8' to g(".#.", "#.#", ".#.", "#.#", ".#."),
+        '9' to g(".#.", "#.#", ".##", "..#", "##."),
+        ':' to g(".", "#", ".", "#", "."),
+    )
+
+    override operator fun get(c: Char): DotGlyph = glyphs[c] ?: blank
+}

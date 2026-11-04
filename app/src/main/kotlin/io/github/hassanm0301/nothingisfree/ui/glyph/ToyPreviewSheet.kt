@@ -31,9 +31,7 @@ import io.github.hassanm0301.nothingisfree.ui.components.ButtonVariant
 import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
 import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
-import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingSlider
-import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.components.StatusDot
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
@@ -50,6 +48,7 @@ private const val MINUTES_PER_DAY = 24 * 60
 @Composable
 fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
+    val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
     val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
     val now by rememberNow()
@@ -59,12 +58,11 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
     var simulatedAt by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val time = pickedMinute?.let { LocalTime.of(it / 60, it % 60) } ?: now
-    val face = remember(toy, binaryClock) { toy.face(PREVIEW_SIZE, binaryClock) }
-    val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
+    val face = remember(toy, digitalClock, binaryClock) { toy.face(PREVIEW_SIZE, digitalClock, binaryClock) }
+    val pulseOn = AddonId.NOTIFICATION_PULSE in addons
     // Starts at once even with battery saver, which would only hold it for the next minute.
     val pulse by rememberPulse(simulatedAt, pulseSettings.copy(batterySaver = false), pulseOn)
-    val battery = batteryGauge(viewModel, toy)
-    val ring = ringGauge(viewModel, toy)
+    val battery = batteryGauge(viewModel)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -89,7 +87,7 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
             }
             Spacer(Modifier.height(Spacing.lg))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                ToyMatrix(face, time, pulse.level, Modifier.width(240.dp), battery, ring)
+                ToyMatrix(face, time, pulse.level, Modifier.width(240.dp), battery)
             }
             Spacer(Modifier.height(Spacing.lg))
 
@@ -124,15 +122,9 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
                     color = NothingTheme.colors.muted,
                 )
             } else {
-                NothingListRow(
-                    AddonId.NOTIFICATION_PULSE.title,
-                    subtitle = "Off for this toy",
-                    trailing = {
-                        NothingSwitch(false, { viewModel.setAddon(AddonId.NOTIFICATION_PULSE, toy, it) })
-                    },
-                )
                 Text(
-                    "Switch it on to simulate a notification.",
+                    "The ${AddonId.NOTIFICATION_PULSE.title.lowercase()} is off. Switch it on in " +
+                        "Glyph › Addons to simulate a notification here.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = NothingTheme.colors.muted,
                 )

@@ -1,7 +1,10 @@
 package io.github.hassanm0301.nothingisfree.core.battery
 
+import android.os.BatteryManager
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BatteryLevelTest {
@@ -20,5 +23,14 @@ class BatteryLevelTest {
         assertNull(BatteryLevel.percent(50, -1))
         assertNull(BatteryLevel.percent(50, 0))
         assertEquals(100, BatteryLevel.percent(120, 100))
+    }
+
+    @Test
+    fun `charging means charging or full on the charger`() {
+        assertTrue(BatteryLevel.charging(BatteryManager.BATTERY_STATUS_CHARGING))
+        assertTrue(BatteryLevel.charging(BatteryManager.BATTERY_STATUS_FULL))
+        assertFalse(BatteryLevel.charging(BatteryManager.BATTERY_STATUS_DISCHARGING))
+        assertFalse(BatteryLevel.charging(BatteryManager.BATTERY_STATUS_NOT_CHARGING))
+        assertFalse(BatteryLevel.charging(-1))
     }
 }

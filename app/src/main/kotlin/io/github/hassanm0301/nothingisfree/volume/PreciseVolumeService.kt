@@ -39,12 +39,14 @@ import kotlin.math.roundToInt
 
 /**
  * Precise volume: writes the volume level as text beside the system volume bar while the volume
- * changes. The bar itself is left as it is.
+ * popup is up. The bar itself is left as it is.
  *
  * It is an accessibility service because only those can both see where the system's volume popup
- * is and draw above it (`TYPE_ACCESSIBILITY_OVERLAY` sits over `TYPE_VOLUME_OVERLAY`). It takes no
- * accessibility events and filters no keys. Volume changes come from AudioService's broadcast, and
- * system windows are looked through for the bar only while a label is showing or about to.
+ * is and draw above it (`TYPE_ACCESSIBILITY_OVERLAY` sits over `TYPE_VOLUME_OVERLAY`). It filters
+ * no keys. Two things bring the label up: AudioService's broadcast when the volume changes, and a
+ * system window opening that may be the popup, because while nothing plays Android's first press
+ * only opens the popup and changes nothing. System windows are looked through for the bar only
+ * after one of those, while a label is showing or about to.
  */
 class PreciseVolumeService : AccessibilityService() {
 
@@ -62,6 +64,9 @@ class PreciseVolumeService : AccessibilityService() {
     /** The stream that changed last; the label shows its level. */
     private var stream = AudioManager.STREAM_MUSIC
 
+    /** The popup opened without a change, so which stream it shows is read off the bar. */
+    private var streamFromBar = false
+
     /** The label and its window while it is on screen. */
     private var label: TextView? = null
     private var labelParams: WindowManager.LayoutParams? = null
@@ -73,6 +78,7 @@ class PreciseVolumeService : AccessibilityService() {
             val changed = intent.getIntExtra(EXTRA_VOLUME_STREAM_TYPE, -1)
             if (!VolumeStreams.isShown(changed) || !power.isInteractive) return
             stream = changed
+            streamFromBar = false
             timeline.changed(SystemClock.uptimeMillis())
             if (!ticking) tick()
         }
@@ -102,7 +108,24 @@ class PreciseVolumeService : AccessibilityService() {
         super.onDestroy()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    /**
+     * A window opened. If it is a system window that could be the volume popup, look for the bar:
+     * the popup may have opened on a press that changed nothing, so no broadcast is coming.
+     */
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return
+        if ((event.windowChanges and AccessibilityEvent.WINDOWS_CHANGE_ADDED) == 0) return
+        if (!registered || ticking || !power.isInteractive) return
+        // Not finding the window is no reason to skip it; looking costs a few ticks at most.
+        val added = windows.firstOrNull { it.id == event.windowId }
+        if (added != null) {
+            if (added.type != AccessibilityWindowInfo.TYPE_SYSTEM) return
+            if (!VolumeBar.couldBePopup(shapeOf(added), screen())) return
+        }
+        streamFromBar = true
+        timeline.appeared(SystemClock.uptimeMillis())
+        tick()
+    }
 
     override fun onInterrupt() = Unit
 
@@ -126,7 +149,13 @@ class PreciseVolumeService : AccessibilityService() {
         val step = if (awake) timeline.tick(SystemClock.uptimeMillis(), bar != null) else timeline.cancel()
         when (step) {
             LabelTimeline.Step.WAIT -> Unit
-            LabelTimeline.Step.BESIDE_BAR -> show(screen, bar)
+            LabelTimeline.Step.BESIDE_BAR -> {
+                if (streamFromBar && bar != null) {
+                    stream = streamShownBy(bar)
+                    streamFromBar = false
+                }
+                show(screen, bar)
+            }
             LabelTimeline.Step.FALLBACK -> show(screen, VolumeBar.fallback(screen, dp(16), dp(48), dp(240)))
             LabelTimeline.Step.KEEP -> show(screen, bar = null)
             LabelTimeline.Step.HIDE -> {
@@ -153,6 +182,21 @@ class PreciseVolumeService : AccessibilityService() {
         return null
     }
 
+    /**
+     * The stream [bar] shows when the popup opened without a change: the one whose level matches
+     * how full the bar is, or else the most likely (media, or the call during a call).
+     */
+    private fun streamShownBy(bar: Bar): Int {
+        val inCall = audio.mode == AudioManager.MODE_IN_CALL || audio.mode == AudioManager.MODE_IN_COMMUNICATION
+        val order = if (inCall) VolumeStreams.IN_CALL_ORDER else VolumeStreams.ORDER
+        return VolumeStreams.pick(
+            bar.fill,
+            order.map { s ->
+                StreamLevel(s, audio.getStreamVolume(s), audio.getStreamMinVolume(s), audio.getStreamMaxVolume(s))
+            },
+        )
+    }
+
     private fun shapeOf(window: AccessibilityWindowInfo): SystemWindow = SystemWindow(
         id = window.id,
         layer = window.layer,
@@ -161,13 +205,19 @@ class PreciseVolumeService : AccessibilityService() {
     )
 
     /** The first visible slider (a node with a range) under [root], breadth first. */
-    private fun firstSlider(root: AccessibilityNodeInfo): ScreenRect? {
+    private fun firstSlider(root: AccessibilityNodeInfo): Slider? {
         val nodes = mutableListOf(root)
         var i = 0
         while (i < nodes.size && i < MAX_NODES) {
             val node = nodes[i++]
-            if (node.rangeInfo != null && node.isVisibleToUser) {
-                return Rect().also(node::getBoundsInScreen).toScreenRect()
+            val range = node.rangeInfo
+            if (range != null && node.isVisibleToUser) {
+                val fill = if (range.max > range.min) {
+                    ((range.current - range.min) / (range.max - range.min)).coerceIn(0f, 1f)
+                } else {
+                    null
+                }
+                return Slider(Rect().also(node::getBoundsInScreen).toScreenRect(), fill)
             }
             for (c in 0 until node.childCount) node.getChild(c)?.let { nodes.add(it) }
         }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hassanm0301.nothingisfree.NothingIsFreeApp
 import io.github.hassanm0301.nothingisfree.core.battery.BatteryLevel
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.core.notifications.RecentNotifications
 import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.core.update.Release
@@ -12,10 +13,12 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRingSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
+import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
-import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
+import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockSettings
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 import io.github.hassanm0301.nothingisfree.volume.PreciseVolumePreferences
@@ -48,12 +51,13 @@ class AppViewModel : ViewModel() {
     /** Whether a notification the pulse counts is still in the shade. */
     val notificationsShowing: StateFlow<Boolean> = RecentNotifications.anyShowing
 
-    /** For each addon, the toys it is on for. */
-    val addons: StateFlow<Map<AddonId, Set<ToyId>>> = AddonPreferences.enabled
+    /** The addons switched on, at most one per category. Each draws on whichever toy is showing. */
+    val addons: StateFlow<Set<AddonId>> = AddonPreferences.enabled
 
-    fun setAddon(addon: AddonId, toy: ToyId, on: Boolean) = AddonPreferences.setEnabled(addon, toy, on)
+    /** Switch [addon] on or off for every toy; on switches off the other of its category. */
+    fun setAddon(addon: AddonId, on: Boolean) = AddonPreferences.setEnabled(addon, on)
 
-    /** Notification pulse settings, shared by every toy it is on for. */
+    /** Notification pulse settings, shared by every toy. */
     val pulse: StateFlow<PulseSettings> = AddonPreferences.pulse
 
     fun updatePulse(transform: (PulseSettings) -> PulseSettings) = AddonPreferences.updatePulse(transform)
@@ -61,19 +65,32 @@ class AppViewModel : ViewModel() {
     /** Pretend a notification just arrived, so the pulse runs on the phone's matrix. */
     fun testPulseOnPhone() = RecentNotifications.record(System.currentTimeMillis())
 
-    /** Battery level addon settings, shared by every toy it is on for. */
+    /** Battery level addon settings, shared by every toy. */
     val battery: StateFlow<BatterySettings> = AddonPreferences.battery
 
     fun updateBattery(transform: (BatterySettings) -> BatterySettings) = AddonPreferences.updateBattery(transform)
 
-    /** Battery ring addon settings, shared by every toy it is on for. */
-    val ring: StateFlow<BatteryRingSettings> = AddonPreferences.ring
+    /** Binary battery addon settings, shared by every toy. */
+    val binaryBattery: StateFlow<BinaryBatterySettings> = AddonPreferences.binaryBattery
 
-    fun updateRing(transform: (BatteryRingSettings) -> BatteryRingSettings) = AddonPreferences.updateRing(transform)
+    fun updateBinaryBattery(transform: (BinaryBatterySettings) -> BinaryBatterySettings) =
+        AddonPreferences.updateBinaryBattery(transform)
 
-    /** The phone's battery level, 0..100 (null if unknown), followed while a screen shows it. */
-    val batteryPercent: StateFlow<Int?> = BatteryLevel.changes(NothingIsFreeApp.instance)
+    /** Battery ring addon settings, shared by every toy. */
+    val batteryRing: StateFlow<BatteryRingSettings> = AddonPreferences.batteryRing
+
+    fun updateBatteryRing(transform: (BatteryRingSettings) -> BatteryRingSettings) =
+        AddonPreferences.updateBatteryRing(transform)
+
+    /** The phone's battery (null if unknown), followed while a screen shows it. */
+    val batteryState: StateFlow<BatteryState?> = BatteryLevel.changes(NothingIsFreeApp.instance)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BatteryLevel.read(NothingIsFreeApp.instance))
+
+    /** Digital clock toy options; the toy redraws as soon as they change. */
+    val digitalClock: StateFlow<DigitalClockSettings> = DigitalClockPreferences.settings
+
+    fun updateDigitalClock(transform: (DigitalClockSettings) -> DigitalClockSettings) =
+        DigitalClockPreferences.update(transform)
 
     /** Binary clock toy options; the toy redraws as soon as they change. */
     val binaryClock: StateFlow<BinaryClockSettings> = BinaryClockPreferences.settings

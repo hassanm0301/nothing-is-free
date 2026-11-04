@@ -1,7 +1,9 @@
 package io.github.hassanm0301.nothingisfree.volume
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VolumeBarTest {
@@ -10,7 +12,7 @@ class VolumeBarTest {
 
     /** A popup at the right edge, like AOSP's, with its slider inset from the popup's edges. */
     private val popup = SystemWindow(id = 1, layer = 5, bounds = ScreenRect(920, 800, 1060, 1600), titleSaysVolume = false)
-    private val slider = ScreenRect(950, 850, 1030, 1550)
+    private val slider = Slider(ScreenRect(950, 850, 1030, 1550), fill = 0.5f)
 
     private val shade = SystemWindow(id = 2, layer = 3, bounds = screen, titleSaysVolume = false)
     private val statusBar = SystemWindow(id = 3, layer = 4, bounds = ScreenRect(0, 0, 1080, 100), titleSaysVolume = false)
@@ -33,24 +35,34 @@ class VolumeBarTest {
     }
 
     @Test
-    fun `a slider in a narrow popup reaches out to the popup's edges`() {
-        assertEquals(Bar(ScreenRect(920, 850, 1060, 1550), vertical = true), VolumeBar.bar(popup, slider, screen))
+    fun `a window opening could be the popup if it is titled as the volume controls or small`() {
+        assertTrue(VolumeBar.couldBePopup(popup, screen))
+        assertTrue(VolumeBar.couldBePopup(shade.copy(titleSaysVolume = true), screen))
+        assertFalse(VolumeBar.couldBePopup(shade, screen))
+    }
+
+    @Test
+    fun `a slider in a narrow popup reaches out to the popup's edges and keeps its fill`() {
+        assertEquals(
+            Bar(ScreenRect(920, 850, 1060, 1550), vertical = true, fill = 0.5f),
+            VolumeBar.bar(popup, slider, screen),
+        )
     }
 
     @Test
     fun `a horizontal slider reaches up and down to the popup's edges`() {
         val panel = SystemWindow(id = 4, layer = 5, bounds = ScreenRect(100, 1800, 980, 2100), titleSaysVolume = false)
-        val across = ScreenRect(140, 1900, 940, 1940)
+        val across = Slider(ScreenRect(140, 1900, 940, 1940), fill = null)
         assertEquals(Bar(ScreenRect(140, 1800, 940, 2100), vertical = false), VolumeBar.bar(panel, across, screen))
     }
 
     @Test
     fun `the slider alone in a window too big or too wide to be just the popup`() {
         val titledShade = shade.copy(titleSaysVolume = true)
-        assertEquals(Bar(slider, vertical = true), VolumeBar.bar(titledShade, slider, screen))
+        assertEquals(Bar(slider.bounds, vertical = true, fill = 0.5f), VolumeBar.bar(titledShade, slider, screen))
         val wide = SystemWindow(id = 5, layer = 5, bounds = ScreenRect(0, 1000, 1080, 1400), titleSaysVolume = false)
-        val inWide = ScreenRect(950, 1020, 1030, 1380)
-        assertEquals(Bar(inWide, vertical = true), VolumeBar.bar(wide, inWide, screen))
+        val inWide = Slider(ScreenRect(950, 1020, 1030, 1380), fill = null)
+        assertEquals(Bar(inWide.bounds, vertical = true), VolumeBar.bar(wide, inWide, screen))
     }
 
     @Test
@@ -63,7 +75,7 @@ class VolumeBarTest {
     fun `no slider and no volume title means no bar`() {
         assertNull(VolumeBar.bar(popup, null, screen))
         assertNull(VolumeBar.bar(shade.copy(titleSaysVolume = true), null, screen))
-        assertNull(VolumeBar.bar(popup, ScreenRect(10, 10, 10, 50), screen))
+        assertNull(VolumeBar.bar(popup, Slider(ScreenRect(10, 10, 10, 50), fill = 0.5f), screen))
     }
 
     @Test
