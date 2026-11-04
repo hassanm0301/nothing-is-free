@@ -69,13 +69,32 @@ Toy > the toy's name, then flip the phone. Changes to a toy's settings or addons
 on the matrix straight away.
 
 ### Digital clock
-Hours over minutes in 3x5 digits on the 13x13 matrix (5x7 on a 25x25). The edge is left free for
-addons. Before addons this was the "Pulse clock", with the notification pulse built in; the pulse
-is now an addon, on for this toy by default.
+Hours over minutes, each line centred on its own. The edge is left free for addons. Before addons
+this was the "Pulse clock", with the notification pulse built in; the pulse is now an addon, on for
+this toy by default.
+
+Options (`DigitalClockSettings`), applied to the matrix as soon as they change:
+- **Font** (`ClockFont`):
+  - `STANDARD` (default) – full 3x5 digits (`DotFontSmall`) on the 13x13 matrix, 5x7 (`DotFont`)
+    on a 25x25.
+  - `MINIMAL` – `DotFontMinimal` at every size: 3x5 strokes with the corners left open and a
+    one-column `1`, so it lights as few LEDs as it can (about a third fewer than `STANDARD`;
+    `11:11` is 20 LEDs instead of 32) and is narrower when there are 1s.
+
+  Either way the face occupies the same box (the widest two digits, 7x11 on the 13x13), so addons
+  don't move when the font or the time changes.
+
+  To add a font: a `DotTypeface` in `dotmatrix/DotFont.kt`, then an entry at the end of
+  `ClockFont` (label, description, `typeface(size)`). The options page lists every entry, and the
+  face sizes its box from the font, so nothing else needs to change. Saved by entry name, so don't
+  rename entries.
 
 - `glyph/toy/ClockFace` – the frame.
-- `glyph/toy/ClockToyService` – the toy service. It keeps its old class name because the phone
-  remembers the chosen toy by component name; renaming it would quietly unselect the toy.
+- `glyph/toy/ClockFont` – the fonts the clock can use.
+- `glyph/toy/ClockToyService` – the toy service. Its face flow emits again whenever the font
+  changes. It keeps its old class name because the phone remembers the chosen toy by component
+  name; renaming it would quietly unselect the toy.
+- `glyph/toy/DigitalClockPreferences` – the settings, persisted.
 
 ### Binary clock
 HH:MM in binary-coded decimal: four columns (hours tens, hours units, minutes tens, minutes

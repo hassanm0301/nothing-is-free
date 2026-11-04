@@ -1,5 +1,6 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
+import io.github.hassanm0301.nothingisfree.dotmatrix.DotFontMinimal
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotFontSmall
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import org.junit.Assert.assertEquals
@@ -45,5 +46,52 @@ class ClockFaceTest {
         val big = ClockFace(25)
         val frame = big.render(LocalTime.of(23, 59), true)
         frame.forEach { x, y, v -> if (v > 0) assertTrue("($x,$y) is off the matrix", big.inCircle(x, y)) }
+    }
+
+    private fun lit(m: DotMatrix): Int {
+        var n = 0
+        m.forEach { _, _, v -> if (v > 0) n++ }
+        return n
+    }
+
+    @Test
+    fun `minimal font centres each line and keeps the standard box`() {
+        val minimal = ClockFace(13, ClockFont.MINIMAL)
+        val expected = DotMatrix(13, 13).apply {
+            text("11", x = 5, y = 1, font = DotFontMinimal) // 3 wide, centred in the 7-wide block
+            text("09", x = 3, y = 7, font = DotFontMinimal)
+        }
+        assertEquals(expected.toFrame().toList(), minimal.render(LocalTime.of(11, 9), true).toFrame().toList())
+        for (y in 0 until 13) for (x in 0 until 13) assertEquals("($x,$y)", face.occupies(x, y), minimal.occupies(x, y))
+    }
+
+    @Test
+    fun `minimal font lights fewer LEDs than the standard one at every minute`() {
+        val minimal = ClockFace(13, ClockFont.MINIMAL)
+        for (m in 0 until 24 * 60) {
+            val t = LocalTime.of(m / 60, m % 60)
+            assertTrue("$t", lit(minimal.render(t, true)) < lit(face.render(t, true)))
+        }
+    }
+
+    @Test
+    fun `every font fits inside its box and the round matrix at both sizes`() {
+        for (font in ClockFont.entries) for (size in listOf(13, 25)) {
+            val f = ClockFace(size, font)
+            for (m in 0 until 24 * 60) {
+                f.render(LocalTime.of(m / 60, m % 60), true).forEach { x, y, v ->
+                    if (v > 0) assertTrue("$font $size ($x,$y)", f.occupies(x, y) && f.inCircle(x, y))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `minimal digits are all distinct`() {
+        val shapes = ('0'..'9').map { c ->
+            val g = DotFontMinimal[c]
+            (0 until g.height).joinToString("/") { y -> (0 until g.width).joinToString("") { x -> if (g[x, y]) "#" else "." } }
+        }
+        assertEquals(10, shapes.toSet().size)
     }
 }

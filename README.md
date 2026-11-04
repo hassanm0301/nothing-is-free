@@ -3,7 +3,8 @@
 An Android app in the style of Nothing OS. Jetpack Compose, Kotlin, min Android 14.
 Three tabs:
 - **Glyph** – always-on Glyph Toys for the Phone (4a) Pro, in two lists (see `docs/GLYPH.md`):
-  - *Toys*: **Digital clock** and **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
+  - *Toys*: **Digital clock** (hours over minutes, in a Standard or a Minimal font that lights
+    as few LEDs as it can) and **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
     adjustable active/inactive brightness). Each opens a settings page with a live matrix and a
     **Preview** sheet: scrub the time of day and simulate a notification.
   - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
@@ -77,7 +78,7 @@ app/src/main/kotlin/io/github/hassanm0301/nothingisfree/
   ui/theme/        colours, type (Ndot / NType 82 / Lettera Mono), shapes, spacing, theme mode
   ui/components/   the Nothing component kit
   ui/              AppScreen (tab bar + tabs) and the shared AppViewModel
-  dotmatrix/       DotMatrix frame model, 5x7 dot font, Compose renderer
+  dotmatrix/       DotMatrix frame model, dot fonts (5x7, 3x5, minimal), Compose renderer
   core/device/     Nothing device detection
   core/battery/    the phone's battery level, for the battery level addon
   core/notifications/  notification listener feeding the Glyph pulse

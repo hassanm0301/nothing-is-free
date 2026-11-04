@@ -1,21 +1,21 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
-import io.github.hassanm0301.nothingisfree.dotmatrix.DotFont
-import io.github.hassanm0301.nothingisfree.dotmatrix.DotFontSmall
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotTypeface
 import java.time.LocalTime
 
 /**
  * The Digital clock toy's frame for a round [size]x[size] Glyph Matrix: hours stacked over minutes
- * in the middle. The edge is left free for addons such as the notification pulse.
+ * in the middle, in [font] (see [ClockFont]). The edge is left free for addons such as the
+ * notification pulse.
  *
- * 13 (Phone (4a) Pro) uses the 3x5 [DotFontSmall]; 25 (Phone (3)) has room for the 5x7 [DotFont].
+ * Each line is centred on its own, so a font with narrow digits (the minimal `1`) stays centred.
+ * [occupies] is the box the widest two digits need, the same every minute.
  */
-class ClockFace(override val size: Int) : ToyFace {
-    private val font: DotTypeface = if (size >= 21) DotFont else DotFontSmall
-    private val blockWidth = DotMatrix.measure("00", font = font)
-    private val digitHeight = font['0'].height
+class ClockFace(override val size: Int, val font: ClockFont = ClockFont.STANDARD) : ToyFace {
+    private val typeface: DotTypeface = font.typeface(size)
+    private val blockWidth = 2 * ('0'..'9').maxOf { typeface[it].width } + 1
+    private val digitHeight = typeface['0'].height
     private val blockHeight = digitHeight * 2 + 1
     private val left = (size - blockWidth) / 2
     private val top = (size - blockHeight) / 2
@@ -29,8 +29,15 @@ class ClockFace(override val size: Int) : ToyFace {
     override fun render(time: LocalTime, is24Hour: Boolean): DotMatrix {
         val hour = if (is24Hour) time.hour else (time.hour + 11) % 12 + 1
         return DotMatrix(size, size).apply {
-            text(hour.toString().padStart(2, '0'), x = left, y = top, font = font)
-            text(time.minute.toString().padStart(2, '0'), x = left, y = top + digitHeight + 1, font = font)
+            line(hour, top)
+            line(time.minute, top + digitHeight + 1)
         }
+    }
+
+    private fun DotMatrix.line(value: Int, y: Int) {
+        val digits = value.toString().padStart(2, '0')
+        // Rounds down, as the block itself does, so full-width lines land exactly on `left`.
+        val x = left + (blockWidth - DotMatrix.measure(digits, font = typeface)) / 2
+        text(digits, x = x, y = y, font = typeface)
     }
 }

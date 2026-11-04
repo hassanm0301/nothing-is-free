@@ -12,5 +12,5 @@ class BinaryClockToyService : GlyphToyService() {
     override val toyId = ToyId.BINARY_CLOCK
 
     override fun faces(size: Int): Flow<ToyFace> =
-        BinaryClockPreferences.settings.map { toyId.face(size, it) }
+        BinaryClockPreferences.settings.map { BinaryClockFace(size).with(it) }
 }
