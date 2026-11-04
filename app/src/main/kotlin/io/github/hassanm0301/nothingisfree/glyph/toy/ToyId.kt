@@ -5,7 +5,7 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
  * settings from when each toy had its own addon switches, still read once, so don't rename entries.
  */
 enum class ToyId(val title: String, val summary: String) {
-    DIGITAL_CLOCK("Digital clock", "Hours over minutes in a 3x5 dot font"),
+    DIGITAL_CLOCK("Digital clock", "Hours over minutes in a dot font"),
     BINARY_CLOCK("Binary clock", "Hours and minutes in binary-coded decimal"),
     ;
 

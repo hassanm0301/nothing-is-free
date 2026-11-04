@@ -14,8 +14,12 @@ import kotlinx.coroutines.flow.updateAndGet
  * @property brightness of the digits, in [BRIGHTNESS_RANGE] %; the face turns it into a
  *   `DotMatrix` level with `Brightness.level`. Addons keep their own brightness settings. Never 0:
  *   the clock would vanish.
+ * @property font the digits are drawn in; see [ClockFont].
  */
-data class DigitalClockSettings(val brightness: Int = 100) {
+data class DigitalClockSettings(
+    val brightness: Int = 100,
+    val font: ClockFont = ClockFont.STANDARD,
+) {
 
     /** These settings brought within their limits. */
     fun normalized(): DigitalClockSettings = copy(brightness = brightness.coerceIn(BRIGHTNESS_RANGE))
@@ -31,6 +35,7 @@ data class DigitalClockSettings(val brightness: Int = 100) {
  */
 object DigitalClockPreferences {
     private const val KEY_BRIGHTNESS = "brightness_percent"
+    private const val KEY_FONT = "font"
 
     private var prefs: SharedPreferences? = null
     private val _settings = MutableStateFlow(DigitalClockSettings())
@@ -42,11 +47,15 @@ object DigitalClockPreferences {
         val d = DigitalClockSettings()
         _settings.value = DigitalClockSettings(
             brightness = p.getInt(KEY_BRIGHTNESS, d.brightness),
+            font = p.getString(KEY_FONT, null)?.let { s -> ClockFont.entries.firstOrNull { it.name == s } } ?: d.font,
         ).normalized()
     }
 
     fun update(transform: (DigitalClockSettings) -> DigitalClockSettings) {
         val s = _settings.updateAndGet { transform(it).normalized() }
-        prefs?.edit { putInt(KEY_BRIGHTNESS, s.brightness) }
+        prefs?.edit {
+            putInt(KEY_BRIGHTNESS, s.brightness)
+            putString(KEY_FONT, s.font.name)
+        }
     }
 }
