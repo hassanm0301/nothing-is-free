@@ -110,6 +110,54 @@ class LabelTimelineTest {
     }
 
     @Test
+    fun `a window opening shows the label once the bar is found, even before it was ever seen`() {
+        val t = LabelTimeline()
+        t.appeared(t0)
+        assertEquals(WAIT, t.tick(t0, barFound = false))
+        assertEquals(BESIDE_BAR, t.tick(t0 + TICK_MS, barFound = true))
+        assertTrue(t.barSeen)
+    }
+
+    @Test
+    fun `a window opening that isn't the popup shows nothing, not even the stand-in`() {
+        val t = LabelTimeline()
+        t.appeared(t0)
+        assertEquals(WAIT, t.tick(t0, barFound = false))
+        assertEquals(WAIT, t.tick(t0 + WAIT_FOR_BAR_MS - 1, barFound = false))
+        assertEquals(HIDE, t.tick(t0 + WAIT_FOR_BAR_MS, barFound = false))
+    }
+
+    @Test
+    fun `the label that came with the popup goes with it`() {
+        val t = LabelTimeline()
+        t.appeared(t0)
+        val steps = listOf(true, true, false, false).mapIndexed { i, found ->
+            t.tick(t0 + i * TICK_MS, barFound = found)
+        }
+        assertEquals(listOf(BESIDE_BAR, BESIDE_BAR, KEEP, HIDE), steps)
+    }
+
+    @Test
+    fun `a window opening doesn't disturb a label already due`() {
+        val t = LabelTimeline()
+        t.changed(t0)
+        assertEquals(FALLBACK, t.tick(t0, barFound = false))
+        t.appeared(t0 + 50)
+        assertEquals(FALLBACK, t.tick(t0 + TICK_MS, barFound = false))
+        // Its time still runs from the change.
+        assertEquals(HIDE, t.tick(t0 + FALLBACK_MS, barFound = false))
+    }
+
+    @Test
+    fun `a change after a window opening may stand in again`() {
+        val t = LabelTimeline()
+        t.appeared(t0)
+        assertEquals(WAIT, t.tick(t0, barFound = false))
+        t.changed(t0 + TICK_MS)
+        assertEquals(FALLBACK, t.tick(t0 + TICK_MS, barFound = false))
+    }
+
+    @Test
     fun `cancel hides and forgets the change`() {
         val t = LabelTimeline()
         t.changed(t0)
