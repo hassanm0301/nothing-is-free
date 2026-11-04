@@ -10,7 +10,8 @@ Three tabs:
     the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of
     times after a notification, with a battery saver that only checks once a minute, with the clock.
     **Battery level**: five dots on the top, bottom, left or right edge show the charge; top and
-    bottom can drain right to left or left to right.
+    bottom can drain right to left or left to right. **Battery ring**: the whole outer edge is
+    lit when full and empties from the top, clockwise or anticlockwise, as the charge drops.
 - **Widgets** – **Precise volume**: the volume level as text (percent or steps) beside the system
   volume bar while you change the volume, from an accessibility service (see `docs/WIDGETS.md`).
   Below it, previews of the home-screen widgets to come.

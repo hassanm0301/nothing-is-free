@@ -64,6 +64,7 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
     // Starts at once even with battery saver, which would only hold it for the next minute.
     val pulse by rememberPulse(simulatedAt, pulseSettings.copy(batterySaver = false), pulseOn)
     val battery = batteryGauge(viewModel, toy)
+    val ring = ringGauge(viewModel, toy)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -88,7 +89,7 @@ fun ToyPreviewSheet(toy: ToyId, viewModel: AppViewModel, onDismiss: () -> Unit) 
             }
             Spacer(Modifier.height(Spacing.lg))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                ToyMatrix(face, time, pulse.level, Modifier.width(240.dp), battery)
+                ToyMatrix(face, time, pulse.level, Modifier.width(240.dp), battery, ring)
             }
             Spacer(Modifier.height(Spacing.lg))
 

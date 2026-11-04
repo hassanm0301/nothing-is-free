@@ -62,6 +62,7 @@ fun ToyDetailScreen(
     val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
     val pulse by rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
     val battery = batteryGauge(viewModel, toy)
+    val ring = ringGauge(viewModel, toy)
 
     NothingScreen(insets) {
         detailHeader("Glyph", onBack, kicker = "Glyph toy", title = toy.title, body = toy.summary)
@@ -80,7 +81,7 @@ fun ToyDetailScreen(
                 }
                 Spacer(Modifier.height(Spacing.lg))
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    ToyMatrix(face, now, pulse.level, Modifier.width(168.dp), battery)
+                    ToyMatrix(face, now, pulse.level, Modifier.width(168.dp), battery, ring)
                 }
                 Spacer(Modifier.height(Spacing.lg))
                 NothingButton("Preview", onClick = { previewing = true }, modifier = Modifier.fillMaxWidth())

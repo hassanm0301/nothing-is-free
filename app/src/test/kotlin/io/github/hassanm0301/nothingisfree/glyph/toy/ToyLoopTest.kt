@@ -2,12 +2,17 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.Brightness
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryBar
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRing
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRingSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.NotificationPulse
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
+import io.github.hassanm0301.nothingisfree.glyph.addon.RingDirection
+import io.github.hassanm0301.nothingisfree.glyph.addon.RingGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -62,7 +67,9 @@ class ToyLoopTest {
         loop: ToyLoop = this@ToyLoopTest.loop,
         batteryOn: Flow<Boolean> = MutableStateFlow(false),
         battery: Flow<BatterySettings> = MutableStateFlow(BatterySettings()),
-    ) = launch { loop.run(faces, pulseOn, pulse, alertAt, showing, batteryOn, battery) }
+        ringOn: Flow<Boolean> = MutableStateFlow(false),
+        ring: Flow<BatteryRingSettings> = MutableStateFlow(BatteryRingSettings()),
+    ) = launch { loop.run(faces, pulseOn, pulse, alertAt, showing, batteryOn, battery, ringOn, ring) }
 
     /** The phone's battery level as the loop reads it, and how many times it has. */
     private var batteryPercent: Int? = 60
@@ -414,6 +421,50 @@ class ToyLoopTest {
         assertEquals(255, later[top.first, top.second])
         repeat(5) { nextFrame() }
         assertEquals(2, batteryReads)
+        job.cancel()
+    }
+
+    @Test
+    fun `shows the battery ring at once when switched on, reading the level once for both battery addons`() = runBlocking {
+        val ringOn = MutableStateFlow(false)
+        val ring = MutableStateFlow(BatteryRingSettings(emptyBrightness = 0))
+        val bar = BatterySettings(edge = BatteryEdge.BOTTOM, emptyBrightness = 0)
+        val job = runLoop(
+            loop = batteryLoop,
+            batteryOn = MutableStateFlow(true),
+            battery = MutableStateFlow(bar),
+            ringOn = ringOn,
+            ring = ring,
+        )
+        nextFrame()
+        assertEquals(1, batteryReads)
+
+        ringOn.value = true
+        assertEquals(
+            digital.frame(time, true, battery = BatteryGauge(bar, 60), ring = RingGauge(ring.value, 60)).cells(),
+            nextFrame().cells(),
+        )
+        assertEquals(2, batteryReads)
+
+        // A new level shows with the next repaint, on both, from one read.
+        batteryPercent = 10
+        batteryLoop.refresh()
+        val low = nextFrame()
+        assertEquals(listOf(255, 0, 0, 0, 0), low.bottomRow())
+        val cells = BatteryRing.cells(digital, ring.value, exclude = BatteryBar.cells(digital, bar).toSet())
+        val lit = BatteryRing.lit(10, cells.size)
+        cells.forEachIndexed { i, (x, y) -> assertEquals("($x,$y)", if (i < lit) 255 else 0, low[x, y]) }
+        assertEquals(3, batteryReads)
+
+        // The direction moves the ring's dots at once.
+        ring.value = ring.value.copy(direction = RingDirection.ANTICLOCKWISE)
+        assertEquals(
+            digital.frame(time, true, battery = BatteryGauge(bar, 10), ring = RingGauge(ring.value, 10)).cells(),
+            nextFrame().cells(),
+        )
+
+        ringOn.value = false
+        assertEquals(digital.frame(time, true, battery = BatteryGauge(bar, 10)).cells(), nextFrame().cells())
         job.cancel()
     }
 

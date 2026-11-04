@@ -53,11 +53,14 @@ object BatteryBar {
 
 /**
  * Where the addons draw on [face]: the battery bar (with [battery] settings, or none when the
- * addon is off), and the notification pulse ring on the rest of the edge, so the pulse never
- * covers the reading. Depends only on the face and the bar's edge; toys work it out once per face
- * rather than per frame.
+ * addon is off), then the battery ring ([ring], likewise) and the notification pulse ring, both
+ * on the edge the bar leaves free, so neither covers the bar. The pulse does run over the battery
+ * ring, which takes the same LEDs, while it plays. Depends only on the face and the addons'
+ * settings; toys work it out once per face rather than per frame.
  */
-class AddonLayout(face: ToyFace, battery: BatterySettings?) {
+class AddonLayout(face: ToyFace, battery: BatterySettings?, ring: BatteryRingSettings? = null) {
     val bar: List<Pair<Int, Int>> = battery?.let { BatteryBar.cells(face, it) }.orEmpty()
+    val batteryRing: List<Pair<Int, Int>> =
+        ring?.let { BatteryRing.cells(face, it, exclude = bar.toSet()) }.orEmpty()
     val ring: List<Pair<Int, Int>> = NotificationPulse.ring(face, exclude = bar.toSet())
 }

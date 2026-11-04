@@ -17,6 +17,7 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.MinuteCheck
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
+import io.github.hassanm0301.nothingisfree.glyph.addon.RingGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.frame
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
@@ -30,7 +31,7 @@ const val PREVIEW_SIZE = 13
 
 /**
  * A toy's matrix as the phone shows it: [face] at [time] with the notification pulse at
- * [pulseLevel] and the [battery] level (null = addon off), drawn through the same `frame()` the
+ * [pulseLevel], the [battery] level bar and the battery [ring] (null = addon off), drawn through the same `frame()` the
  * toy services use.
  */
 @Composable
@@ -40,11 +41,14 @@ fun ToyMatrix(
     pulseLevel: Int,
     modifier: Modifier = Modifier,
     battery: BatteryGauge? = null,
+    ring: RingGauge? = null,
 ) {
     val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
-    val layout = remember(face, battery?.settings) { AddonLayout(face, battery?.settings) }
-    val frame = remember(face, time.hour, time.minute, is24Hour, pulseLevel, battery, layout) {
-        face.frame(time, is24Hour, pulseLevel, battery, layout)
+    val layout = remember(face, battery?.settings, ring?.settings) {
+        AddonLayout(face, battery?.settings, ring?.settings)
+    }
+    val frame = remember(face, time.hour, time.minute, is24Hour, pulseLevel, battery, ring, layout) {
+        face.frame(time, is24Hour, pulseLevel, battery, ring, layout)
     }
     DotMatrixCanvas(frame, modifier, isDot = face::isLed)
 }
@@ -57,6 +61,16 @@ fun batteryGauge(viewModel: AppViewModel, toy: ToyId): BatteryGauge? {
     val percent by viewModel.batteryPercent.collectAsStateWithLifecycle()
     if (toy !in addons[AddonId.BATTERY_LEVEL].orEmpty()) return null
     return percent?.let { BatteryGauge(settings, it) }
+}
+
+/** The battery ring addon on [toy] at the phone's level, or null while it is off for the toy. */
+@Composable
+fun ringGauge(viewModel: AppViewModel, toy: ToyId): RingGauge? {
+    val addons by viewModel.addons.collectAsStateWithLifecycle()
+    val settings by viewModel.ring.collectAsStateWithLifecycle()
+    val percent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+    if (toy !in addons[AddonId.BATTERY_RING].orEmpty()) return null
+    return percent?.let { RingGauge(settings, it) }
 }
 
 /**

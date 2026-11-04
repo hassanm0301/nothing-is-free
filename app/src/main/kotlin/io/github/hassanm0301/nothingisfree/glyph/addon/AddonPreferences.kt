@@ -26,6 +26,10 @@ enum class AddonId(val title: String, val summary: String) {
         "Battery level",
         "Five dots along one edge show how much charge is left",
     ),
+    BATTERY_RING(
+        "Battery ring",
+        "A line all around the edge empties from the top as the charge drops",
+    ),
 }
 
 /**
@@ -144,6 +148,25 @@ data class BatterySettings(
     val emptyBrightness: Int = 10,
 )
 
+/** Which way the battery ring empties from the top: the used-up part sweeps this way round. */
+enum class RingDirection(val label: String) {
+    CLOCKWISE("Clockwise"),
+    ANTICLOCKWISE("Anticlockwise"),
+}
+
+/**
+ * How the battery ring addon looks. One setting for every toy. Brightness values are 0..100 %.
+ *
+ * @property direction which way round the ring empties, starting at the top.
+ * @property brightness the dots still holding charge.
+ * @property emptyBrightness the dots already used up; 0 leaves them dark, so only the charge shows.
+ */
+data class BatteryRingSettings(
+    val direction: RingDirection = RingDirection.CLOCKWISE,
+    val brightness: Int = 100,
+    val emptyBrightness: Int = 10,
+)
+
 /**
  * Addon settings, shared by the app UI and the toy services (same process). [init] runs from
  * `NothingIsFreeApp.onCreate`.
@@ -163,6 +186,9 @@ object AddonPreferences {
     private const val KEY_BATTERY_DRAIN = "battery_drain"
     private const val KEY_BATTERY_BRIGHTNESS = "battery_brightness_percent"
     private const val KEY_BATTERY_EMPTY_BRIGHTNESS = "battery_empty_brightness_percent"
+    private const val KEY_RING_DIRECTION = "battery_ring_direction"
+    private const val KEY_RING_BRIGHTNESS = "battery_ring_brightness_percent"
+    private const val KEY_RING_EMPTY_BRIGHTNESS = "battery_ring_empty_brightness_percent"
 
     /** Battery brightness saved on the old 0..255 scale, converted the first time it is read. */
     private const val KEY_LEGACY_BATTERY_BRIGHTNESS = "battery_brightness"
@@ -178,6 +204,7 @@ object AddonPreferences {
     private val _enabled = MutableStateFlow(defaults)
     private val _pulse = MutableStateFlow(PulseSettings())
     private val _battery = MutableStateFlow(BatterySettings())
+    private val _ring = MutableStateFlow(BatteryRingSettings())
 
     /** For each addon, the toys it is switched on for. */
     val enabled: StateFlow<Map<AddonId, Set<ToyId>>> = _enabled.asStateFlow()
@@ -187,6 +214,9 @@ object AddonPreferences {
 
     /** The battery level addon's settings. */
     val battery: StateFlow<BatterySettings> = _battery.asStateFlow()
+
+    /** The battery ring addon's settings. */
+    val ring: StateFlow<BatteryRingSettings> = _ring.asStateFlow()
 
     fun init(context: Context) {
         val p = context.getSharedPreferences("glyph_addons", Context.MODE_PRIVATE)
@@ -216,6 +246,13 @@ object AddonPreferences {
             brightness = percent(p, KEY_BATTERY_BRIGHTNESS, KEY_LEGACY_BATTERY_BRIGHTNESS, b.brightness)
                 .coerceAtLeast(1),
             emptyBrightness = percent(p, KEY_BATTERY_EMPTY_BRIGHTNESS, KEY_LEGACY_BATTERY_EMPTY_BRIGHTNESS, b.emptyBrightness),
+        )
+        val r = BatteryRingSettings()
+        _ring.value = BatteryRingSettings(
+            direction = p.getString(KEY_RING_DIRECTION, null)
+                ?.let { s -> RingDirection.entries.firstOrNull { it.name == s } } ?: r.direction,
+            brightness = p.getInt(KEY_RING_BRIGHTNESS, r.brightness).coerceIn(1, 100),
+            emptyBrightness = p.getInt(KEY_RING_EMPTY_BRIGHTNESS, r.emptyBrightness).coerceIn(0, 100),
         )
     }
 
@@ -263,6 +300,15 @@ object AddonPreferences {
             putString(KEY_BATTERY_DRAIN, s.drain.name)
             putInt(KEY_BATTERY_BRIGHTNESS, s.brightness.coerceIn(1, 100))
             putInt(KEY_BATTERY_EMPTY_BRIGHTNESS, s.emptyBrightness.coerceIn(0, 100))
+        }
+    }
+
+    fun updateRing(transform: (BatteryRingSettings) -> BatteryRingSettings) {
+        val s = _ring.updateAndGet(transform)
+        prefs?.edit {
+            putString(KEY_RING_DIRECTION, s.direction.name)
+            putInt(KEY_RING_BRIGHTNESS, s.brightness.coerceIn(1, 100))
+            putInt(KEY_RING_EMPTY_BRIGHTNESS, s.emptyBrightness.coerceIn(0, 100))
         }
     }
 
