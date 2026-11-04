@@ -11,6 +11,7 @@ import io.github.hassanm0301.nothingisfree.core.update.Release
 import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRingSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
@@ -74,6 +75,12 @@ class AppViewModel : ViewModel() {
 
     fun updateBinaryBattery(transform: (BinaryBatterySettings) -> BinaryBatterySettings) =
         AddonPreferences.updateBinaryBattery(transform)
+
+    /** Battery ring addon settings, shared by every toy. */
+    val batteryRing: StateFlow<BatteryRingSettings> = AddonPreferences.batteryRing
+
+    fun updateBatteryRing(transform: (BatteryRingSettings) -> BatteryRingSettings) =
+        AddonPreferences.updateBatteryRing(transform)
 
     /** The phone's battery (null if unknown), followed while a screen shows it. */
     val batteryState: StateFlow<BatteryState?> = BatteryLevel.changes(NothingIsFreeApp.instance)

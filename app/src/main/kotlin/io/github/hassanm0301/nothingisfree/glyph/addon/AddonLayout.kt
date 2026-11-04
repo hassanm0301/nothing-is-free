@@ -14,23 +14,27 @@ data class BatteryGauge(val look: BatteryLook, val state: BatteryState) {
     fun draw(frame: DotMatrix, cells: List<Pair<Int, Int>>) = when (look) {
         is BatterySettings -> BatteryBar.draw(frame, cells, look, state.percent)
         is BinaryBatterySettings -> BinaryBattery.draw(frame, cells, look, state)
+        is BatteryRingSettings -> BatteryRing.draw(frame, cells, look, state.percent)
     }
 }
 
 /**
  * Where the addons draw on [face]: the battery addon whose settings are [look] (none if null),
  * and the notification pulse ring on the rest of the edge, so the pulse never covers the reading.
- * Depends only on the face and the battery addon's settings; toys work it out once per face rather
- * than per frame.
+ * The battery ring is the exception: it takes the whole edge, so the pulse keeps the whole edge
+ * too and covers the ring while it plays. Depends only on the face and the battery addon's
+ * settings; toys work it out once per face rather than per frame.
  */
 class AddonLayout(face: ToyFace, look: BatteryLook?) {
     /** The battery addon's dots, in the order it draws them; empty with none. */
     val battery: List<Pair<Int, Int>> = when (look) {
         is BatterySettings -> BatteryBar.cells(face, look)
         is BinaryBatterySettings -> BinaryBattery.cells(face, look)
+        is BatteryRingSettings -> BatteryRing.cells(face, look)
         null -> emptyList()
     }
-    val ring: List<Pair<Int, Int>> = NotificationPulse.ring(face, exclude = battery.toSet())
+    val ring: List<Pair<Int, Int>> =
+        NotificationPulse.ring(face, exclude = if (look is BatteryRingSettings) emptySet() else battery.toSet())
 }
 
 /** Blocks of LEDs along one edge of the round matrix, where the battery addons go. */

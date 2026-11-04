@@ -13,7 +13,8 @@ Three tabs:
     *Battery* – **Battery level**: five dots on the top, bottom, left or right edge show the
     charge; top and bottom can drain right to left or left to right, and the highest dot can fade
     with what is left of its 20%. **Binary battery**: the exact percentage in BCD on a 5x2 block at
-    an edge, with charging and battery saver dots.
+    an edge, with charging and battery saver dots. **Battery ring**: the whole outer edge is lit
+    when full and empties from the top, clockwise or anticlockwise, as the charge drops.
 - **Widgets** – **Precise volume**: the volume level as text (percent or steps) beside the system
   volume bar while you change the volume, from an accessibility service (see `docs/WIDGETS.md`).
   Below it, previews of the home-screen widgets to come.

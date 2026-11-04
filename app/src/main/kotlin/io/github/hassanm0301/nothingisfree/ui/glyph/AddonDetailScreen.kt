@@ -42,6 +42,8 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryBar
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryDrain
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRing
+import io.github.hassanm0301.nothingisfree.glyph.addon.RingDirection
 import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBattery
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
@@ -111,6 +113,7 @@ fun AddonDetailScreen(
             AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, on) }
             AddonId.BATTERY_LEVEL -> item { BatteryLevelSettings(viewModel, on) }
             AddonId.BINARY_BATTERY -> item { BinaryBatteryOptions(viewModel, on) }
+            AddonId.BATTERY_RING -> item { BatteryRingOptions(viewModel, on) }
         }
     }
 }
@@ -388,6 +391,111 @@ private fun BatteryLevelSettings(viewModel: AppViewModel, on: Boolean) {
             "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
                 "the phone for it. With the notification pulse on too, the ring pulses around the " +
                 "bar and leaves the level showing."
+        } else {
+            "Switch the addon on at the top of this page first."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+}
+
+@Composable
+private fun BatteryRingOptions(viewModel: AppViewModel, on: Boolean) {
+    val ring by viewModel.batteryRing.collectAsStateWithLifecycle()
+    val phone by viewModel.batteryState.collectAsStateWithLifecycle()
+    // null follows the phone; otherwise the level picked on the slider.
+    var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
+    val percent = pickedPercent ?: phone?.percent ?: 100
+    val blank = remember { BlankFace(PREVIEW_SIZE) }
+    val dots = remember(blank) { BatteryRing.cells(blank, ring).size }
+
+    SectionHeader("Preview")
+    NothingCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MonoLabel("On the matrix · $PREVIEW_SIZE×$PREVIEW_SIZE", Modifier.weight(1f))
+            MonoLabel(
+                "${BatteryRing.lit(percent, dots)} of $dots dots",
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), BatteryGauge(ring, percent))
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$percent%", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+            NothingChip("Now", selected = pickedPercent == null, onClick = { pickedPercent = null })
+        }
+        NothingSlider(value = percent, onValueChange = { pickedPercent = it }, range = 0..100)
+        Row {
+            MonoLabel("0%", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+            MonoLabel("100%", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "The whole edge is lit when full. Each of its $dots dots is a share of the charge and stays " +
+            "lit until it is used up, so the last one shows down to 1%. Slide to try other levels; " +
+            "only this preview changes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Drains")
+    NothingCard {
+        ChoiceChips(RingDirection.entries, ring.direction, { it.label }) { direction ->
+            viewModel.updateBatteryRing { it.copy(direction = direction) }
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        if (ring.direction == RingDirection.CLOCKWISE) {
+            "The top dot goes out first, then the ring empties clockwise from there, so the dot just " +
+                "left of the top is the last to go."
+        } else {
+            "The top dot goes out first, then the ring empties anticlockwise from there, so the dot " +
+                "just right of the top is the last to go."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Brightness")
+    NothingCard {
+        SliderControl(
+            "Charge",
+            ring.brightness,
+            1..100,
+            { "$it%" },
+            onValueChange = { v -> viewModel.updateBatteryRing { it.copy(brightness = v) } },
+            onStep = { d ->
+                viewModel.updateBatteryRing { it.copy(brightness = (it.brightness + d).coerceIn(1, 100)) }
+            },
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        PercentControl(
+            "Used up",
+            ring.emptyBrightness,
+            onValueChange = { v -> viewModel.updateBatteryRing { it.copy(emptyBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateBatteryRing { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
+            },
+        )
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "Used-up dots at 0% stay dark, so only the charge left shows.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("On the phone")
+    Text(
+        if (on) {
+            "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
+                "the phone for it. The notification pulse uses the same edge, so while a pulse plays " +
+                "it covers the ring; the level shows again when it ends."
         } else {
             "Switch the addon on at the top of this page first."
         },
