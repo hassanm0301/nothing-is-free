@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
  *
  * A toy only names itself ([toyId]) and its face ([faces]). The base runs the [ToyLoop], repaints
  * on each AOD tick, and adds the addons switched on for the toy in [AddonPreferences]: the
- * notification pulse and the battery level.
+ * notification pulse, the battery level and the battery ring.
  */
 abstract class GlyphToyService : Service() {
 
@@ -114,6 +114,8 @@ abstract class GlyphToyService : Service() {
                 RecentNotifications.anyShowing,
                 AddonPreferences.enabledFlow(AddonId.BATTERY_LEVEL, toyId),
                 AddonPreferences.battery,
+                AddonPreferences.enabledFlow(AddonId.BATTERY_RING, toyId),
+                AddonPreferences.ring,
             )
         }
     }

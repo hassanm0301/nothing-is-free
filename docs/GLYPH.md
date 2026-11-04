@@ -25,7 +25,7 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
     at once when the face, an addon switch, the last alert (unless on battery saver) or an addon's
     settings change, and 25 fps while a notification pulse is running. Draws through `frame()` (see
     [addons](#addons)), says how long a pulse has left so the service can keep the CPU up, and
-    reads the battery level for the battery addon on repaints that aren't pulse frames.
+    reads the battery level for the battery addons on repaints that aren't pulse frames.
   - `GlyphToyService` – the base service. Binds `GlyphMatrixManager` and registers the device,
     runs `ToyLoop`, pushes frames with `setMatrixFrame` (dropped frames are logged), forwards
     `EVENT_AOD` to `refresh()`, holds the pulse wake lock as `ToyLoop` asks, and gives it
@@ -38,14 +38,17 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   - `RoundMatrix` – the round LED mask every face draws inside.
 - `glyph/addon/` – the [addons](#addons), drawn on top of any toy and switched on per toy:
   - `AddonPreferences` – which toys each addon is on for, and the pulse and battery settings
-    (`PulseSettings`: steps, repeat, battery saver; `BatterySettings`), persisted.
-  - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, battery, …)`,
+    (`PulseSettings`: steps, repeat, battery saver; `BatterySettings`; `BatteryRingSettings`),
+    persisted.
+  - `NotificationPulse` – the pulse ring, and `ToyFace.frame(time, is24Hour, pulseLevel, battery, ring, …)`,
     the full frame a toy shows: face plus addons. The toy services and the in-app previews both
     draw through it, so a preview is exactly what the matrix shows.
   - `PulseWave` – the ring level over a run of `PulseStep`s; `MinuteCheck`, battery saver's
     once-a-minute look at the notifications.
   - `BatteryBar` – the battery level's dots; `AddonLayout`, where each addon draws on a face (the
-    bar, and the pulse ring around it), worked out once per face rather than per frame.
+    bar, the battery ring and the pulse ring around the bar), worked out once per face rather than
+    per frame.
+  - `BatteryRing` – the battery ring's dots, all around the edge, in the order they light.
 - `core/battery/BatteryLevel` – the phone's charge from the sticky `ACTION_BATTERY_CHANGED`
   broadcast: `read()` for the toys, `changes()` for the app's screens.
 
@@ -193,6 +196,33 @@ every toy; there is no permission to grant.
 - `glyph/addon/AddonLayout` (in `BatteryBar.kt`) – the bar and the pulse ring for a face.
 - `core/battery/BatteryLevel` – `read()` for the toys; `changes()`, a receiver-backed flow, for
   the app's screens while they show.
+
+### Battery ring
+The outermost line of LEDs, all the way around the matrix, shows the phone's charge. Full, the
+whole ring is lit. As the charge drops it empties from the top: the top dot goes out first, then
+the used-up part sweeps **clockwise** (default) or **anticlockwise** round the ring, so at 50%
+one half is lit (the left half, draining clockwise). Each dot is an equal share of the charge and
+stays lit until its share is used up, like the battery level bar: on the 13x13 matrix the ring is
+36 dots, about 2.8% each, and the last one (just beside the top) shows down to 1%. The settings
+are shared by every toy; there is no permission to grant.
+
+- **Per-toy switch** – on a toy's page. Off for every toy to begin with.
+- **Drains** – clockwise or anticlockwise, always starting at the top.
+- **Charge / used-up brightness** – 1..100 % (default 100 %) and 0..100 % (default 10 %), as for
+  the battery level bar.
+- **Where it goes** – the matrix edge less what the face occupies (the same LEDs the notification
+  pulse uses). With the battery level bar on too, the ring goes around the bar's dots.
+- **With the notification pulse** – they share the edge, so while a pulse plays it covers the
+  ring; the level shows again as soon as the pulse ends.
+- **When it updates** – as the battery level bar: the toy reads the level on each repaint that
+  isn't a pulse frame, once for both battery addons.
+- In the app, the addon's page has a preview with a level slider (it only moves the preview), and
+  the toy pages and the preview sheet show the ring at the phone's real level.
+- Saved as `battery_ring_direction`, `battery_ring_brightness_percent` and
+  `battery_ring_empty_brightness_percent`.
+
+- `glyph/addon/BatteryRing` – which LEDs make the ring and in what order they light (`cells`,
+  sorted by angle from the top), how many are lit (`lit`), and `draw`.
 
 ## Next steps
 - `GlyphMatrixController : GlyphController` for in-app frames (`setAppMatrixFrame`, needs

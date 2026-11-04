@@ -39,6 +39,9 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryBar
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryDrain
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRing
+import io.github.hassanm0301.nothingisfree.glyph.addon.RingDirection
+import io.github.hassanm0301.nothingisfree.glyph.addon.RingGauge
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
@@ -77,6 +80,7 @@ fun AddonDetailScreen(
         when (addon) {
             AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, anyToy = on.isNotEmpty()) }
             AddonId.BATTERY_LEVEL -> item { BatteryLevelSettings(viewModel, anyToy = on.isNotEmpty()) }
+            AddonId.BATTERY_RING -> item { BatteryRingPage(viewModel, anyToy = on.isNotEmpty()) }
         }
     }
 }
@@ -340,6 +344,108 @@ private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
             "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
                 "the phone for it. With the notification pulse on too, the ring pulses around the " +
                 "bar and leaves the level showing."
+        } else {
+            "Switch the addon on from a toy's page first."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+}
+
+@Composable
+private fun BatteryRingPage(viewModel: AppViewModel, anyToy: Boolean) {
+    val ring by viewModel.ring.collectAsStateWithLifecycle()
+    val phonePercent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+    // null follows the phone; otherwise the level picked on the slider.
+    var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
+    val percent = pickedPercent ?: phonePercent ?: 100
+    val blank = remember { BlankFace(PREVIEW_SIZE) }
+    val dots = remember(blank, ring.direction) { BatteryRing.cells(blank, ring).size }
+
+    SectionHeader("Preview")
+    NothingCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MonoLabel("On the matrix · $PREVIEW_SIZE×$PREVIEW_SIZE", Modifier.weight(1f))
+            MonoLabel(
+                "${BatteryRing.lit(percent, dots)} of $dots dots",
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), ring = RingGauge(ring, percent))
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$percent%", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+            NothingChip("Now", selected = pickedPercent == null, onClick = { pickedPercent = null })
+        }
+        NothingSlider(value = percent, onValueChange = { pickedPercent = it }, range = 0..100)
+        Row {
+            MonoLabel("0%", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+            MonoLabel("100%", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "The whole edge is lit when full. Each of its $dots dots is a share of the charge and stays " +
+            "lit until it is used up, so the last one shows down to 1%. Slide to try other levels; " +
+            "only this preview changes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Drains")
+    NothingCard {
+        ChoiceChips(RingDirection.entries, ring.direction, { it.label }) { direction ->
+            viewModel.updateRing { it.copy(direction = direction) }
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "The top dot goes out first, then the ring empties " +
+            (if (ring.direction == RingDirection.CLOCKWISE) "clockwise" else "anticlockwise") +
+            " from there, so the dot just " +
+            (if (ring.direction == RingDirection.CLOCKWISE) "left" else "right") +
+            " of the top is the last to go.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Brightness")
+    NothingCard {
+        SliderControl(
+            "Charge",
+            ring.brightness,
+            1..100,
+            { "$it%" },
+            onValueChange = { v -> viewModel.updateRing { it.copy(brightness = v) } },
+            onStep = { d -> viewModel.updateRing { it.copy(brightness = (it.brightness + d).coerceIn(1, 100)) } },
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        PercentControl(
+            "Used up",
+            ring.emptyBrightness,
+            onValueChange = { v -> viewModel.updateRing { it.copy(emptyBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateRing { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
+            },
+        )
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "Used-up dots at 0% stay dark, so only the charge left shows.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("On the phone")
+    Text(
+        if (anyToy) {
+            "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
+                "the phone for it. The notification pulse uses the same edge, so while a pulse plays " +
+                "it covers the ring; the level shows again when it ends. With the battery level bar " +
+                "on too, the ring goes around the bar."
         } else {
             "Switch the addon on from a toy's page first."
         },
