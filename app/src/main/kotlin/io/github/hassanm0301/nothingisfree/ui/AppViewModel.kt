@@ -18,7 +18,6 @@ import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockSettings
-import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 import io.github.hassanm0301.nothingisfree.volume.PreciseVolumePreferences
@@ -51,12 +50,13 @@ class AppViewModel : ViewModel() {
     /** Whether a notification the pulse counts is still in the shade. */
     val notificationsShowing: StateFlow<Boolean> = RecentNotifications.anyShowing
 
-    /** For each addon, the toys it is on for. */
-    val addons: StateFlow<Map<AddonId, Set<ToyId>>> = AddonPreferences.enabled
+    /** The addons switched on, at most one per category. Each draws on whichever toy is showing. */
+    val addons: StateFlow<Set<AddonId>> = AddonPreferences.enabled
 
-    fun setAddon(addon: AddonId, toy: ToyId, on: Boolean) = AddonPreferences.setEnabled(addon, toy, on)
+    /** Switch [addon] on or off for every toy; on switches off the other of its category. */
+    fun setAddon(addon: AddonId, on: Boolean) = AddonPreferences.setEnabled(addon, on)
 
-    /** Notification pulse settings, shared by every toy it is on for. */
+    /** Notification pulse settings, shared by every toy. */
     val pulse: StateFlow<PulseSettings> = AddonPreferences.pulse
 
     fun updatePulse(transform: (PulseSettings) -> PulseSettings) = AddonPreferences.updatePulse(transform)
@@ -64,12 +64,12 @@ class AppViewModel : ViewModel() {
     /** Pretend a notification just arrived, so the pulse runs on the phone's matrix. */
     fun testPulseOnPhone() = RecentNotifications.record(System.currentTimeMillis())
 
-    /** Battery level addon settings, shared by every toy it is on for. */
+    /** Battery level addon settings, shared by every toy. */
     val battery: StateFlow<BatterySettings> = AddonPreferences.battery
 
     fun updateBattery(transform: (BatterySettings) -> BatterySettings) = AddonPreferences.updateBattery(transform)
 
-    /** Binary battery addon settings, shared by every toy it is on for. */
+    /** Binary battery addon settings, shared by every toy. */
     val binaryBattery: StateFlow<BinaryBatterySettings> = AddonPreferences.binaryBattery
 
     fun updateBinaryBattery(transform: (BinaryBatterySettings) -> BinaryBatterySettings) =

@@ -140,7 +140,7 @@ class ToyLoopTest {
     }
 
     @Test
-    fun `pulses only while the addon is on for the toy`() = runBlocking {
+    fun `pulses only while the addon is on`() = runBlocking {
         val pulseOn = MutableStateFlow(false)
         // One rise time in is the peak of the breath.
         val alertAt = MutableStateFlow<Long?>(clock.now - RISE_MS)

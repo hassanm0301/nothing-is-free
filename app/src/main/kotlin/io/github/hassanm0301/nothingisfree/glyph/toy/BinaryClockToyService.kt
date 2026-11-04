@@ -9,8 +9,6 @@ import kotlinx.coroutines.flow.map
  */
 class BinaryClockToyService : GlyphToyService() {
 
-    override val toyId = ToyId.BINARY_CLOCK
-
     override fun faces(size: Int): Flow<ToyFace> =
         BinaryClockPreferences.settings.map { BinaryClockFace(size).with(it) }
 }

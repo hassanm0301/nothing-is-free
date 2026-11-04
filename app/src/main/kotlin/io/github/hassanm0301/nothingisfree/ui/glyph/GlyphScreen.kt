@@ -29,18 +29,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
 import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonCategory
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
 import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
 import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
+import io.github.hassanm0301.nothingisfree.ui.components.NothingSwitch
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.screenHeader
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
@@ -142,8 +146,9 @@ private fun GlyphLists(
             "This phone has no Glyph Matrix, so toys only run as previews here. Tap one to try it."
         }
         GlyphSection.ADDONS ->
-            "Addons draw on top of any toy, switched on from each toy's page, one of each category " +
-                "per toy. Tap one for its settings."
+            "Addons draw on top of whichever toy is showing. Switch them on here, once for every toy: " +
+                "one per category, so switching one on switches off the other of its kind. Tap one " +
+                "for its settings."
     }
 
     NothingScreen(insets) {
@@ -160,14 +165,14 @@ private fun GlyphLists(
         when (section) {
             GlyphSection.TOYS -> items(ToyId.entries, key = { it.name }) { toy ->
                 val face = remember(toy, digitalClock, binaryClock) { toy.face(PREVIEW_SIZE, digitalClock, binaryClock) }
-                val pulseOn = toy in addons[AddonId.NOTIFICATION_PULSE].orEmpty()
+                val pulseOn = AddonId.NOTIFICATION_PULSE in addons
                 val pulse = rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
                 val level by remember { derivedStateOf { pulse.value.level } }
-                val battery = batteryGauge(viewModel, toy)
+                val battery = batteryGauge(viewModel)
                 ListCard(
                     title = toy.title,
                     body = toy.summary,
-                    tags = AddonId.entries.filter { toy in addons[it].orEmpty() }.map { "+ ${it.title}" },
+                    tags = AddonId.entries.filter { it in addons }.map { "+ ${it.title}" },
                     onClick = { onOpen(GlyphPage.Toy(toy)) },
                     leading = { ToyMatrix(face, now, level, Modifier.size(72.dp), battery) },
                 )
@@ -175,12 +180,20 @@ private fun GlyphLists(
             GlyphSection.ADDONS -> AddonCategory.entries.forEach { category ->
                 item(key = "category/${category.name}") { SectionHeader(category.title) }
                 items(AddonId.entries.filter { it.category == category }, key = { it.name }) { addon ->
-                    val on = ToyId.entries.filter { it in addons[addon].orEmpty() }
+                    val on = addon in addons
+                    val other = AddonPreferences.active(addons, category)?.takeIf { it != addon }
                     ListCard(
                         title = addon.title,
                         body = addon.summary,
-                        tags = listOf(if (on.isEmpty()) "Off" else "On · " + on.joinToString(" · ") { it.title }),
+                        tags = listOf(
+                            when {
+                                on -> "On · every toy"
+                                other != null -> "Off · ${other.title} is on"
+                                else -> "Off"
+                            },
+                        ),
                         onClick = { onOpen(GlyphPage.Addon(addon)) },
+                        trailing = { AddonSwitch(addon, on, viewModel) },
                     )
                 }
             }
@@ -188,7 +201,10 @@ private fun GlyphLists(
     }
 }
 
-/** A tappable list entry: optional thumbnail, title, copy, mono tags, and a chevron. */
+/**
+ * A tappable list entry: optional thumbnail, title, copy, mono tags, and a chevron, or [trailing]
+ * in its place (its own taps don't open the entry).
+ */
 @Composable
 private fun ListCard(
     title: String,
@@ -196,6 +212,7 @@ private fun ListCard(
     tags: List<String>,
     onClick: () -> Unit,
     leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     NothingCard(Modifier.padding(bottom = Spacing.sm), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -212,11 +229,30 @@ private fun ListCard(
                     MonoLabel(tag, style = MaterialTheme.typography.labelSmall, color = NothingTheme.colors.accent)
                 }
             }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = NothingTheme.colors.muted,
-            )
+            if (trailing != null) {
+                Spacer(Modifier.width(Spacing.md))
+                trailing()
+            } else {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = NothingTheme.colors.muted,
+                )
+            }
         }
     }
+}
+
+/**
+ * The one switch for [addon], [on] or off for every toy at once; on switches off the other addon
+ * of its category. Named after the addon, since in a list of them the switch alone doesn't say
+ * which it is.
+ */
+@Composable
+fun AddonSwitch(addon: AddonId, on: Boolean, viewModel: AppViewModel, modifier: Modifier = Modifier) {
+    NothingSwitch(
+        checked = on,
+        onCheckedChange = { viewModel.setAddon(addon, it) },
+        modifier = modifier.semantics { contentDescription = addon.title },
+    )
 }
