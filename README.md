@@ -3,8 +3,9 @@
 An Android app in the style of Nothing OS. Jetpack Compose, Kotlin, min Android 14.
 Three tabs:
 - **Glyph** – always-on Glyph Toys for the Phone (4a) Pro, in two lists (see `docs/GLYPH.md`):
-  - *Toys*: **Digital clock** and **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
-    adjustable active/inactive brightness). Each opens a settings page with a live matrix and a
+  - *Toys*: **Digital clock**, **Binary clock** (HH:MM in BCD, dot or 2x2 square bits,
+    adjustable active/inactive brightness) and **Compact digital clock** (just two digits: the
+    hour's first and the minute's second). Each opens a settings page with a live matrix and a
     **Preview** sheet: scrub the time of day and simulate a notification.
   - *Addons*: drawn on top of any toy, switched on from each toy's page. **Notification pulse**:
     the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of

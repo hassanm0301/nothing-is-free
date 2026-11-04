@@ -105,6 +105,15 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 
 No notification access is needed unless the notification pulse is switched on for it.
 
+### Compact digital clock
+Only two digits, side by side in the 5x7 dot font: the first digit of the hour (its tens) and the
+second digit of the minute (its units). 09:41 shows `01`, 23:58 shows `28`. The hour is
+zero-padded, so on a 12-hour clock the first digit is always 0 or 1. On a 25x25 matrix every dot
+is drawn as a 2x2 block. The edge is left free for addons; none are on by default.
+
+- `glyph/toy/CompactClockFace` – the frame.
+- `glyph/toy/CompactClockToyService` – the toy service.
+
 ## Addons
 Addons draw on top of any toy, only outside the area its face occupies, and each is switched on
 per toy from that toy's page (its **Addons** section). In the app, the **Glyph** tab's **Addons**
