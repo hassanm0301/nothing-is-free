@@ -3,6 +3,7 @@ package io.github.hassanm0301.nothingisfree.glyph.addon
 import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
+import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.BitStyle
 import io.github.hassanm0301.nothingisfree.glyph.toy.ClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
@@ -21,7 +22,7 @@ class BinaryBatteryTest {
         listOf(true, false).map { gap ->
             BinaryClockFace(13).with(BinaryClockSettings(style = style, dotGap = gap, showUnusedBits = true))
         }
-    }
+    } + CompactClockFace(13)
 
     private fun cells(edge: BatteryEdge, face: ToyFace) = BinaryBattery.cells(face, BinaryBatterySettings(edge = edge))
 

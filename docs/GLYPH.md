@@ -15,7 +15,8 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   `core/device/NothingDevice`.
 - `glyph/GlyphController` – the app-facing interface for in-app frames, still `NoOpGlyphController`.
 - `dotmatrix/DotMatrix` – the frame model. `toFrame(max = 4095)` yields the `int[]` the SDK takes.
-- `glyph/toy/` – the [toys](#toys), **Digital clock** and **Binary clock**, sharing:
+- `glyph/toy/` – the [toys](#toys), **Digital clock**, **Binary clock** and **Compact digital clock**,
+  sharing:
   - `ToyFace` – what a toy draws on its own: `render(time, is24Hour)`, plus `occupies(x, y)`, the
     area it keeps for itself, so addons can draw around it.
   - `ToyId` – the toy registry, in the order the Glyph tab lists them.
@@ -130,6 +131,15 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 - `glyph/toy/BinaryClockPreferences` – the settings, persisted.
 
 No notification access is needed unless the notification pulse is on.
+
+### Compact digital clock
+Only two digits, side by side in the 5x7 dot font: the first digit of the hour (its tens) and the
+second digit of the minute (its units). 09:41 shows `01`, 23:58 shows `28`. The hour is
+zero-padded, so on a 12-hour clock the first digit is always 0 or 1. On a 25x25 matrix every dot
+is drawn as a 2x2 block. The edge is left free for addons. It has no options.
+
+- `glyph/toy/CompactClockFace` – the frame.
+- `glyph/toy/CompactClockToyService` – the toy service.
 
 ## Addons
 Addons draw on top of whichever toy is showing, only outside the area its face occupies. Each is

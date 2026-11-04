@@ -2,6 +2,7 @@ package io.github.hassanm0301.nothingisfree.glyph.addon
 
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
+import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.BitStyle
 import io.github.hassanm0301.nothingisfree.glyph.toy.ClockFace
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
@@ -22,7 +23,7 @@ class BatteryBarTest {
         listOf(true, false).map { gap ->
             BinaryClockFace(13).with(BinaryClockSettings(style = style, dotGap = gap, showUnusedBits = true))
         }
-    }
+    } + CompactClockFace(13)
 
     @Test
     fun `top and bottom are the whole outermost row, filling from the end that empties last`() {
