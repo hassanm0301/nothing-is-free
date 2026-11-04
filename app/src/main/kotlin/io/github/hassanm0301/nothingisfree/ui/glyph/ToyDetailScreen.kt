@@ -95,7 +95,7 @@ fun ToyDetailScreen(
                 ToyId.DIGITAL_CLOCK -> DigitalClockOptions(digitalClock, onChange = viewModel::updateDigitalClock)
                 ToyId.BINARY_CLOCK -> BinaryClockOptions(binaryClock, onChange = viewModel::updateBinaryClock)
                 ToyId.COMPACT_CLOCK -> Text(
-                    "No options: it always shows the hour's first digit and the minute's second.",
+                    "No options: it always shows the hour's second digit and the minute's first.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = NothingTheme.colors.muted,
                 )

@@ -6,12 +6,11 @@ import java.time.LocalTime
 
 /**
  * The Compact digital clock toy's frame for a round [size]x[size] Glyph Matrix: just two digits
- * side by side in the 5x7 [DotFont], the first digit of the hour (tens) and the second digit of
- * the minute (units). 09:41 shows `01`, 23:58 shows `28`.
+ * side by side in the 5x7 [DotFont], the second digit of the hour (units) and the first digit of
+ * the minute (tens). 12:46 shows `24`, 09:41 shows `94`.
  *
- * The hour is zero-padded like the Digital clock's, so on a 12-hour clock its first digit is 0 or
- * 1. 13 (Phone (4a) Pro) draws the digits 1:1; 25 (Phone (3)) draws each dot as a 2x2 block. The
- * edge is left free for addons.
+ * The hour follows the phone's 12/24-hour setting. 13 (Phone (4a) Pro) draws the digits 1:1;
+ * 25 (Phone (3)) draws each dot as a 2x2 block. The edge is left free for addons.
  */
 class CompactClockFace(override val size: Int) : ToyFace {
     private val scale = if (size >= 21) 2 else 1
@@ -46,10 +45,10 @@ class CompactClockFace(override val size: Int) : ToyFace {
         /** Dark columns between the two digits. */
         private const val GAP = 1
 
-        /** The two digits shown at [time]: the hour's tens digit, then the minute's units digit. */
+        /** The two digits shown at [time]: the hour's units digit, then the minute's tens digit. */
         fun digits(time: LocalTime, is24Hour: Boolean): Pair<Char, Char> {
             val hour = if (is24Hour) time.hour else (time.hour + 11) % 12 + 1
-            return hour.toString().padStart(2, '0')[0] to time.minute.toString().padStart(2, '0')[1]
+            return '0' + hour % 10 to '0' + time.minute / 10
         }
     }
 }

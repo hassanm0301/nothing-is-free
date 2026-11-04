@@ -5,8 +5,8 @@ Three tabs:
 - **Glyph** – always-on Glyph Toys for the Phone (4a) Pro, in two lists (see `docs/GLYPH.md`):
   - *Toys*: **Digital clock** (Standard or Minimal font, the fewest LEDs; adjustable brightness),
     **Binary clock** (HH:MM in BCD, dot or 2x2 square bits, adjustable active/inactive brightness)
-    and **Compact digital clock** (just two digits: the hour's first and the minute's second). Each opens a settings page with a
-    live matrix and a **Preview** sheet: scrub the time of day and simulate a notification.
+    and **Compact digital clock** (just two digits: the hour's second and the minute's first, so
+    12:46 shows 24). Each opens a settings page with a live matrix and a **Preview** sheet: scrub the time of day and simulate a notification.
   - *Addons*: drawn on top of whichever toy is showing, in categories with one addon of each on
     at a time, switched once for every toy from the Addons list. *Notification* – **Notification pulse**:
     the outer ring plays a pattern of up to 8 steps (brightness and time each) a set number of

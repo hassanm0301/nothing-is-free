@@ -133,10 +133,10 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 No notification access is needed unless the notification pulse is on.
 
 ### Compact digital clock
-Only two digits, side by side in the 5x7 dot font: the first digit of the hour (its tens) and the
-second digit of the minute (its units). 09:41 shows `01`, 23:58 shows `28`. The hour is
-zero-padded, so on a 12-hour clock the first digit is always 0 or 1. On a 25x25 matrix every dot
-is drawn as a 2x2 block. The edge is left free for addons. It has no options.
+Only two digits, side by side in the 5x7 dot font: the second digit of the hour (its units) and
+the first digit of the minute (its tens). 12:46 shows `24`, 09:41 shows `94`. The hour follows
+the phone's 12/24-hour setting, so 13:05 shows `30` on a 24-hour clock and `10` on a 12-hour one.
+On a 25x25 matrix every dot is drawn as a 2x2 block. The edge is left free for addons. It has no options.
 
 - `glyph/toy/CompactClockFace` – the frame.
 - `glyph/toy/CompactClockToyService` – the toy service.

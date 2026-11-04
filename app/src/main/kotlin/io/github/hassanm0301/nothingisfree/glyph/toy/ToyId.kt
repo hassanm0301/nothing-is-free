@@ -7,7 +7,7 @@ package io.github.hassanm0301.nothingisfree.glyph.toy
 enum class ToyId(val title: String, val summary: String) {
     DIGITAL_CLOCK("Digital clock", "Hours over minutes in a dot font"),
     BINARY_CLOCK("Binary clock", "Hours and minutes in binary-coded decimal"),
-    COMPACT_CLOCK("Compact digital clock", "The hour's first digit and the minute's second"),
+    COMPACT_CLOCK("Compact digital clock", "The hour's second digit and the minute's first"),
     ;
 
     /** The face on a [size]x[size] matrix, with the toy's current options. */
