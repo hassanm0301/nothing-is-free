@@ -11,9 +11,14 @@ enum class ToyId(val title: String, val summary: String) {
     ;
 
     /** The face on a [size]x[size] matrix, with the toy's current options. */
-    fun face(size: Int, digital: DigitalClockSettings, binary: BinaryClockSettings): ToyFace = when (this) {
+    fun face(
+        size: Int,
+        digital: DigitalClockSettings,
+        binary: BinaryClockSettings,
+        compact: CompactClockSettings,
+    ): ToyFace = when (this) {
         DIGITAL_CLOCK -> ClockFace(size, digital)
         BINARY_CLOCK -> BinaryClockFace(size).with(binary)
-        COMPACT_CLOCK -> CompactClockFace(size)
+        COMPACT_CLOCK -> CompactClockFace(size, compact)
     }
 }
