@@ -17,8 +17,9 @@ Three tabs:
     an edge, with charging and battery saver dots. **Battery ring**: the whole outer edge is lit
     when full and empties from the top, clockwise or anticlockwise, as the charge drops.
 - **Widgets** – **Precise volume**: the volume level as text (percent or steps) beside the system
-  volume bar while you change the volume, from an accessibility service (see `docs/WIDGETS.md`).
-  Below it, previews of the home-screen widgets to come.
+  volume bar while you change the volume, from an accessibility service. **Clock**: a home-screen
+  widget with the time, the day and date, and the next alarm, in Ndot or NType and any grey from
+  black to white (see `docs/WIDGETS.md`).
 - **Settings** – updates, theme, device info and about.
 
 ## Build
@@ -107,11 +108,11 @@ app/src/main/kotlin/io/github/hassanm0301/nothingisfree/
   glyph/toy/       the Glyph Toys (Digital clock, Binary clock) on a shared GlyphToyService
   glyph/addon/     addons drawn on any toy (Notification pulse, Battery level) and their settings
   ui/glyph/        Glyph tab: toy and addon lists, their settings pages, the preview sheet
-  ui/widgets/      Widgets tab and the Precise volume page
+  ui/widgets/      Widgets tab and the Precise volume and Clock pages
   ui/settings/     Settings tab
   ui/update/       the update card
   volume/          Precise volume: the accessibility service, finding the bar, label placement
-  widget/          empty; Glance widgets go here
+  widget/          home-screen widgets: the Clock (provider, renderer, text, settings)
 docs/              DESIGN.md, GLYPH.md, WIDGETS.md
 ```
 

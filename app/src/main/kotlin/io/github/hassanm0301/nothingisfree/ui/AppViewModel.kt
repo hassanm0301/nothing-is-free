@@ -25,6 +25,9 @@ import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemePreferences
 import io.github.hassanm0301.nothingisfree.volume.PreciseVolumePreferences
 import io.github.hassanm0301.nothingisfree.volume.VolumeFormat
+import io.github.hassanm0301.nothingisfree.widget.ClockWidget
+import io.github.hassanm0301.nothingisfree.widget.ClockWidgetFont
+import io.github.hassanm0301.nothingisfree.widget.ClockWidgetPreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -111,11 +114,31 @@ class AppViewModel : ViewModel() {
 
     fun setVolumeFormat(format: VolumeFormat) = PreciseVolumePreferences.setFormat(format)
 
+    /** The font the home-screen clock widget is drawn in. */
+    val clockWidgetFont: StateFlow<ClockWidgetFont> = ClockWidgetPreferences.font
+
+    /** Change the clock widget's font and redraw the ones on the home screen. */
+    fun setClockWidgetFont(font: ClockWidgetFont) {
+        ClockWidgetPreferences.setFont(font)
+        ClockWidget.update(NothingIsFreeApp.instance)
+    }
+
+    /** The clock widget's text colour, a grey from 0 (black) to 100 (white). */
+    val clockWidgetShade: StateFlow<Int> = ClockWidgetPreferences.shade
+
+    /** Change the clock widget's colour and redraw the ones on the home screen. */
+    fun setClockWidgetShade(shade: Int) {
+        ClockWidgetPreferences.setShade(shade)
+        ClockWidget.update(NothingIsFreeApp.instance)
+    }
+
     /** Self-update from GitHub releases; checked once each time the view model is created. */
     val update: StateFlow<AppUpdater.State> = AppUpdater.state
 
     init {
         checkForUpdate()
+        // Sets the clock widget's minute tick again if a force stop took it.
+        ClockWidget.update(NothingIsFreeApp.instance)
     }
 
     fun checkForUpdate() = AppUpdater.check(NothingIsFreeApp.instance)

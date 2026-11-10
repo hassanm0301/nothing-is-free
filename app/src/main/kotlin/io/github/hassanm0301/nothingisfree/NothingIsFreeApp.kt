@@ -9,6 +9,7 @@ import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockPreferences
 import io.github.hassanm0301.nothingisfree.volume.PreciseVolumePreferences
+import io.github.hassanm0301.nothingisfree.widget.ClockWidgetPreferences
 
 class NothingIsFreeApp : Application() {
 
@@ -24,6 +25,7 @@ class NothingIsFreeApp : Application() {
         CompactClockPreferences.init(this)
         UpdatePreferences.init(this)
         PreciseVolumePreferences.init(this)
+        ClockWidgetPreferences.init(this)
     }
 
     companion object {

@@ -10,4 +10,6 @@
     <string name="precise_volume_name">Precise volume</string>
     <string name="precise_volume_summary">Shows the volume level beside the volume bar</string>
     <string name="precise_volume_description">Shows the volume level as text beside the volume bar whenever it shows.\n\nTo find the volume bar it looks only at system windows, and only when the volume changes or a system window opens. It doesn\'t read what other apps show, and it stores and sends nothing.</string>
+    <string name="clock_widget_name">Clock</string>
+    <string name="clock_widget_description">The time, the day and date, and your next alarm, in a Nothing font</string>
 </resources>
