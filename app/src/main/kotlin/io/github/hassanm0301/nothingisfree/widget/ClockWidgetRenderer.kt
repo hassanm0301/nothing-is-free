@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
+import androidx.core.graphics.createBitmap
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -41,10 +42,9 @@ object ClockWidgetRenderer {
         // A little under the fit: text sizes don't scale to the exact pixel.
         val layout = Layout(lines, timePaint, linePaint, timeSize = max(100f * scale * 0.98f, 1f))
 
-        val bitmap = Bitmap.createBitmap(
+        val bitmap = createBitmap(
             ceil(layout.width).toInt().coerceAtLeast(1),
             ceil(layout.height).toInt().coerceAtLeast(1),
-            Bitmap.Config.ARGB_8888,
         )
         layout.draw(Canvas(bitmap))
         return bitmap

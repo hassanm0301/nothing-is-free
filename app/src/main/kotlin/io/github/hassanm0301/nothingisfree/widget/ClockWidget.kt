@@ -1,5 +1,6 @@
 package io.github.hassanm0301.nothingisfree.widget
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -88,6 +89,8 @@ object ClockWidget {
         context.getSystemService(AlarmManager::class.java).cancel(tick(context))
     }
 
+    // Lint only knows SCHEDULE_EXACT_ALARM; the manifest's USE_EXACT_ALARM allows setExact too.
+    @SuppressLint("MissingPermission")
     private fun scheduleTick(context: Context) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         val at = ClockWidgetText.nextMinute(System.currentTimeMillis())
