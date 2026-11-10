@@ -81,7 +81,7 @@ private sealed interface GlyphPage {
 
 /**
  * Glyph tab: the toys and the addons as two lists. Tapping one opens its settings; Back walks
- * up from there (a toy's page can open an addon's).
+ * up from there.
  */
 @Composable
 fun GlyphScreen(viewModel: AppViewModel, insets: PaddingValues) {
@@ -106,7 +106,6 @@ fun GlyphScreen(viewModel: AppViewModel, insets: PaddingValues) {
                 viewModel = viewModel,
                 insets = insets,
                 onBack = { pop() },
-                onOpenAddon = { push(GlyphPage.Addon(it).key) },
             )
             is GlyphPage.Addon -> AddonDetailScreen(
                 addon = page.id,
