@@ -1,6 +1,5 @@
 package io.github.hassanm0301.nothingisfree.ui.glyph
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,16 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.device.NothingDevice
 import io.github.hassanm0301.nothingisfree.glyph.GlyphCapability
-import io.github.hassanm0301.nothingisfree.glyph.addon.AddonCategory
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
-import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBattery
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.ui.AppViewModel
-import io.github.hassanm0301.nothingisfree.ui.components.DotDivider
 import io.github.hassanm0301.nothingisfree.ui.components.MonoLabel
 import io.github.hassanm0301.nothingisfree.ui.components.NothingButton
 import io.github.hassanm0301.nothingisfree.ui.components.NothingCard
-import io.github.hassanm0301.nothingisfree.ui.components.NothingListRow
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.StatusDot
@@ -40,8 +35,8 @@ import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 
 /**
- * One toy's settings: what it shows right now, a Preview button, its own options, and the addons
- * it shows with them. Addons are switched for every toy at once, on their own pages, not here.
+ * One toy's settings: what it shows right now (with the addons that are on), a Preview button,
+ * and its own options. Addons are switched and set up under Glyph › Addons, not here.
  */
 @Composable
 fun ToyDetailScreen(
@@ -49,7 +44,6 @@ fun ToyDetailScreen(
     viewModel: AppViewModel,
     insets: PaddingValues,
     onBack: () -> Unit,
-    onOpenAddon: (AddonId) -> Unit,
 ) {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
@@ -57,7 +51,6 @@ fun ToyDetailScreen(
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
     val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
     val notificationsShowing by viewModel.notificationsShowing.collectAsStateWithLifecycle()
-    val binaryBattery by viewModel.binaryBattery.collectAsStateWithLifecycle()
     val now by rememberNow()
     var previewing by rememberSaveable { mutableStateOf(false) }
 
@@ -99,41 +92,6 @@ fun ToyDetailScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = NothingTheme.colors.muted,
                 )
-            }
-        }
-        item {
-            SectionHeader("Addons")
-            Text(
-                "Addons are switched on or off for every toy at once, one per category: in Glyph › " +
-                    "Addons, or on an addon's own page. Tap one to open it.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = NothingTheme.colors.muted,
-            )
-            // Where the binary battery really goes on this toy, if its edge has no room here.
-            val binaryEdge = BinaryBattery.placement(face, binaryBattery)
-            AddonCategory.entries.forEach { category ->
-                Spacer(Modifier.height(Spacing.lg))
-                MonoLabel(category.title)
-                AddonId.entries.filter { it.category == category }.forEachIndexed { i, addon ->
-                    if (i > 0) DotDivider()
-                    val moved = addon == AddonId.BINARY_BATTERY && binaryEdge != null && binaryEdge != binaryBattery.edge
-                    NothingListRow(
-                        addon.title,
-                        subtitle = if (moved) {
-                            "Settings › · ${binaryEdge?.label} here, no room at the ${binaryBattery.edge.label.lowercase()}"
-                        } else {
-                            "Settings ›"
-                        },
-                        modifier = Modifier.clickable { onOpenAddon(addon) },
-                        trailing = {
-                            val on = addon in addons
-                            MonoLabel(
-                                if (on) "On" else "Off",
-                                color = if (on) NothingTheme.colors.accent else NothingTheme.colors.muted,
-                            )
-                        },
-                    )
-                }
             }
         }
         item {
