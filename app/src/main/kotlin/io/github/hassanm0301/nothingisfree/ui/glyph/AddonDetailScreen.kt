@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,14 +36,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.hassanm0301.nothingisfree.core.notifications.GlyphNotificationListener
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonId
+import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.core.battery.BatteryState
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryBar
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryDrain
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryEdge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryGauge
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRing
 import io.github.hassanm0301.nothingisfree.glyph.addon.RingDirection
-import io.github.hassanm0301.nothingisfree.glyph.addon.RingGauge
+import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBattery
 import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
+import io.github.hassanm0301.nothingisfree.glyph.toy.ToyId
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseStep
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseWave
@@ -63,7 +67,7 @@ import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 import java.time.LocalTime
 
-/** One addon's settings. It is switched on per toy from each toy's page. */
+/** One addon's settings, under its switch: on or off for every toy at once. */
 @Composable
 fun AddonDetailScreen(
     addon: AddonId,
@@ -73,20 +77,49 @@ fun AddonDetailScreen(
     onBack: () -> Unit,
 ) {
     val addons by viewModel.addons.collectAsStateWithLifecycle()
-    val on = addons[addon].orEmpty()
+    val on = addon in addons
+    // The other addon of this category that switching this one on would switch off.
+    val other = AddonPreferences.active(addons, addon.category)?.takeIf { it != addon }
 
     NothingScreen(insets) {
-        detailHeader(back, onBack, kicker = "Addon", title = addon.title, body = addon.summary)
+        detailHeader(back, onBack, kicker = "Addon · ${addon.category.title}", title = addon.title, body = addon.summary)
+        item {
+            Spacer(Modifier.height(Spacing.lg))
+            NothingCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(if (on) "On" else "Off", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(Spacing.xs))
+                        MonoLabel(
+                            "For every toy",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (on) NothingTheme.colors.accent else NothingTheme.colors.muted,
+                        )
+                    }
+                    Spacer(Modifier.width(Spacing.md))
+                    AddonSwitch(addon, on, viewModel)
+                }
+            }
+            Spacer(Modifier.height(Spacing.sm))
+            Text(
+                "Draws on top of whichever toy the phone shows. One ${addon.category.title.lowercase()} " +
+                    "addon at a time" +
+                    if (other != null) ": switching this on switches ${other.title} off." else ".",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NothingTheme.colors.muted,
+            )
+        }
         when (addon) {
-            AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, anyToy = on.isNotEmpty()) }
-            AddonId.BATTERY_LEVEL -> item { BatteryLevelSettings(viewModel, anyToy = on.isNotEmpty()) }
-            AddonId.BATTERY_RING -> item { BatteryRingPage(viewModel, anyToy = on.isNotEmpty()) }
+            AddonId.NOTIFICATION_PULSE -> item { NotificationPulseSettings(viewModel, on) }
+            AddonId.BATTERY_LEVEL -> item { BatteryLevelSettings(viewModel, on) }
+            AddonId.BINARY_BATTERY -> item { BinaryBatteryOptions(viewModel, on) }
+            AddonId.BATTERY_RING -> item { BatteryRingOptions(viewModel, on) }
         }
     }
 }
 
 @Composable
-private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) {
+private fun NotificationPulseSettings(viewModel: AppViewModel, on: Boolean) {
     val context = LocalContext.current
     val pulse by viewModel.pulse.collectAsStateWithLifecycle()
     var hasAccess by remember { mutableStateOf(GlyphNotificationListener.hasAccess(context)) }
@@ -219,11 +252,11 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
 
     SectionHeader("Test on phone")
     Text(
-        if (anyToy) {
-            "Sends a pretend notification, so the ring pulses on the phone's matrix if a toy it is on " +
-                "for is showing" + if (pulse.batterySaver) ", from the next minute." else "."
+        if (on) {
+            "Sends a pretend notification, so the ring pulses on the phone's matrix if one of this " +
+                "app's toys is showing" + if (pulse.batterySaver) ", from the next minute." else "."
         } else {
-            "Switch the addon on from a toy's page first."
+            "Switch the addon on at the top of this page first."
         },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
@@ -233,17 +266,17 @@ private fun NotificationPulseSettings(viewModel: AppViewModel, anyToy: Boolean) 
         "Test on phone",
         onClick = viewModel::testPulseOnPhone,
         variant = ButtonVariant.Secondary,
-        enabled = anyToy,
+        enabled = on,
     )
 }
 
 @Composable
-private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
+private fun BatteryLevelSettings(viewModel: AppViewModel, on: Boolean) {
     val battery by viewModel.battery.collectAsStateWithLifecycle()
-    val phonePercent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+    val phone by viewModel.batteryState.collectAsStateWithLifecycle()
     // null follows the phone; otherwise the level picked on the slider.
     var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
-    val percent = pickedPercent ?: phonePercent ?: 100
+    val percent = pickedPercent ?: phone?.percent ?: 100
     val blank = remember { BlankFace(PREVIEW_SIZE) }
 
     SectionHeader("Preview")
@@ -330,22 +363,36 @@ private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
                 viewModel.updateBattery { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
             },
         )
+        Spacer(Modifier.height(Spacing.sm))
+        DotDivider()
+        NothingListRow(
+            "Fade the highest dot",
+            subtitle = "Dims as its ${100 / BatteryBar.DOTS}% runs out",
+            trailing = {
+                NothingSwitch(battery.fadeHighestDot, { on -> viewModel.updateBattery { it.copy(fadeHighestDot = on) } })
+            },
+        )
     }
     Spacer(Modifier.height(Spacing.sm))
     Text(
-        "Used-up dots at 0% stay dark, so only the charge left shows.",
+        if (battery.fadeHighestDot) {
+            "The highest lit dot goes from Charge towards Used up as its share runs out: at 80% the " +
+                "fourth dot is at Charge, at 70% it is halfway. Used-up dots at 0% stay dark."
+        } else {
+            "Used-up dots at 0% stay dark, so only the charge left shows."
+        },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
     )
 
     SectionHeader("On the phone")
     Text(
-        if (anyToy) {
+        if (on) {
             "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
                 "the phone for it. With the notification pulse on too, the ring pulses around the " +
                 "bar and leaves the level showing."
         } else {
-            "Switch the addon on from a toy's page first."
+            "Switch the addon on at the top of this page first."
         },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
@@ -353,14 +400,14 @@ private fun BatteryLevelSettings(viewModel: AppViewModel, anyToy: Boolean) {
 }
 
 @Composable
-private fun BatteryRingPage(viewModel: AppViewModel, anyToy: Boolean) {
-    val ring by viewModel.ring.collectAsStateWithLifecycle()
-    val phonePercent by viewModel.batteryPercent.collectAsStateWithLifecycle()
+private fun BatteryRingOptions(viewModel: AppViewModel, on: Boolean) {
+    val ring by viewModel.batteryRing.collectAsStateWithLifecycle()
+    val phone by viewModel.batteryState.collectAsStateWithLifecycle()
     // null follows the phone; otherwise the level picked on the slider.
     var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
-    val percent = pickedPercent ?: phonePercent ?: 100
+    val percent = pickedPercent ?: phone?.percent ?: 100
     val blank = remember { BlankFace(PREVIEW_SIZE) }
-    val dots = remember(blank, ring.direction) { BatteryRing.cells(blank, ring).size }
+    val dots = remember(blank) { BatteryRing.cells(blank, ring).size }
 
     SectionHeader("Preview")
     NothingCard {
@@ -373,7 +420,7 @@ private fun BatteryRingPage(viewModel: AppViewModel, anyToy: Boolean) {
         }
         Spacer(Modifier.height(Spacing.lg))
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), ring = RingGauge(ring, percent))
+            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), BatteryGauge(ring, percent))
         }
         Spacer(Modifier.height(Spacing.lg))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -398,16 +445,18 @@ private fun BatteryRingPage(viewModel: AppViewModel, anyToy: Boolean) {
     SectionHeader("Drains")
     NothingCard {
         ChoiceChips(RingDirection.entries, ring.direction, { it.label }) { direction ->
-            viewModel.updateRing { it.copy(direction = direction) }
+            viewModel.updateBatteryRing { it.copy(direction = direction) }
         }
     }
     Spacer(Modifier.height(Spacing.sm))
     Text(
-        "The top dot goes out first, then the ring empties " +
-            (if (ring.direction == RingDirection.CLOCKWISE) "clockwise" else "anticlockwise") +
-            " from there, so the dot just " +
-            (if (ring.direction == RingDirection.CLOCKWISE) "left" else "right") +
-            " of the top is the last to go.",
+        if (ring.direction == RingDirection.CLOCKWISE) {
+            "The top dot goes out first, then the ring empties clockwise from there, so the dot just " +
+                "left of the top is the last to go."
+        } else {
+            "The top dot goes out first, then the ring empties anticlockwise from there, so the dot " +
+                "just right of the top is the last to go."
+        },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,
     )
@@ -419,16 +468,18 @@ private fun BatteryRingPage(viewModel: AppViewModel, anyToy: Boolean) {
             ring.brightness,
             1..100,
             { "$it%" },
-            onValueChange = { v -> viewModel.updateRing { it.copy(brightness = v) } },
-            onStep = { d -> viewModel.updateRing { it.copy(brightness = (it.brightness + d).coerceIn(1, 100)) } },
+            onValueChange = { v -> viewModel.updateBatteryRing { it.copy(brightness = v) } },
+            onStep = { d ->
+                viewModel.updateBatteryRing { it.copy(brightness = (it.brightness + d).coerceIn(1, 100)) }
+            },
         )
         Spacer(Modifier.height(Spacing.lg))
         PercentControl(
             "Used up",
             ring.emptyBrightness,
-            onValueChange = { v -> viewModel.updateRing { it.copy(emptyBrightness = v) } },
+            onValueChange = { v -> viewModel.updateBatteryRing { it.copy(emptyBrightness = v) } },
             onStep = { d ->
-                viewModel.updateRing { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
+                viewModel.updateBatteryRing { it.copy(emptyBrightness = (it.emptyBrightness + d).coerceIn(0, 100)) }
             },
         )
     }
@@ -441,13 +492,142 @@ private fun BatteryRingPage(viewModel: AppViewModel, anyToy: Boolean) {
 
     SectionHeader("On the phone")
     Text(
-        if (anyToy) {
+        if (on) {
             "The toy reads the level each time its clock updates, once a minute, so it never wakes " +
                 "the phone for it. The notification pulse uses the same edge, so while a pulse plays " +
-                "it covers the ring; the level shows again when it ends. With the battery level bar " +
-                "on too, the ring goes around the bar."
+                "it covers the ring; the level shows again when it ends."
         } else {
-            "Switch the addon on from a toy's page first."
+            "Switch the addon on at the top of this page first."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+}
+
+@Composable
+private fun BinaryBatteryOptions(viewModel: AppViewModel, on: Boolean) {
+    val binary by viewModel.binaryBattery.collectAsStateWithLifecycle()
+    val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
+    val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
+    val phone by viewModel.batteryState.collectAsStateWithLifecycle()
+    // null follows the phone; otherwise what was picked here.
+    var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pickedCharging by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var pickedPowerSave by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val state = BatteryState(
+        percent = pickedPercent ?: phone?.percent ?: 100,
+        charging = pickedCharging ?: phone?.charging ?: false,
+        powerSave = pickedPowerSave ?: phone?.powerSave ?: false,
+    )
+    val following = pickedPercent == null && pickedCharging == null && pickedPowerSave == null
+    val blank = remember { BlankFace(PREVIEW_SIZE) }
+
+    SectionHeader("Preview")
+    NothingCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MonoLabel("On the matrix · $PREVIEW_SIZE×$PREVIEW_SIZE", Modifier.weight(1f))
+            MonoLabel(binary.edge.label, color = MaterialTheme.colorScheme.onBackground)
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ToyMatrix(blank, LocalTime.MIDNIGHT, 0, Modifier.width(168.dp), BatteryGauge(binary, state))
+        }
+        Spacer(Modifier.height(Spacing.lg))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${state.percent}%", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+            NothingChip("Now", selected = following, onClick = {
+                pickedPercent = null
+                pickedCharging = null
+                pickedPowerSave = null
+            })
+        }
+        NothingSlider(value = state.percent, onValueChange = { pickedPercent = it }, range = 0..100)
+        Row {
+            MonoLabel("0%", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+            MonoLabel("100%", style = MaterialTheme.typography.labelSmall)
+        }
+        Spacer(Modifier.height(Spacing.md))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            NothingChip("Charging", selected = state.charging, onClick = { pickedCharging = !state.charging })
+            NothingChip("Battery saver", selected = state.powerSave, onClick = { pickedPowerSave = !state.powerSave })
+        }
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        if (binary.edge.horizontal) {
+            "Top row: tens; bottom row: units. From the left, the dots are worth 8, 4, 2 and 1: add up " +
+                "the lit ones. The fifth dot of the top row is lit while charging, of the bottom row " +
+                "while battery saver is on. 73% is 0111 over 0011."
+        } else {
+            "Left column: tens; right column: units. From the top, the dots are worth 8, 4, 2 and 1: " +
+                "add up the lit ones. The bottom dot of the left column is lit while charging, of the " +
+                "right column while battery saver is on. 73% is 0111 beside 0011."
+        } + " Slide or tap to try other states; only this preview changes.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Position")
+    NothingCard {
+        MonoLabel("Edge")
+        Spacer(Modifier.height(Spacing.sm))
+        ChoiceChips(BatteryEdge.entries, binary.edge, { it.label }) { edge ->
+            viewModel.updateBinaryBattery { it.copy(edge = edge) }
+        }
+    }
+    // Toys whose face leaves no room at the chosen edge, and where the block goes on them instead.
+    val moved = ToyId.entries.mapNotNull { toy ->
+        val placed = BinaryBattery.placement(toy.face(PREVIEW_SIZE, digitalClock, binaryClock), binary)
+        if (placed == binary.edge) null else toy to placed
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    val movedNote = moved.joinToString("") { (toy, placed) ->
+        " The ${toy.title} leaves no room at the ${binary.edge.label.lowercase()}, so there it goes " +
+            if (placed != null) "on the ${placed.label.lowercase()}." else "nowhere."
+    }
+    Text(
+        "Two lines deep and five dots long, on the outermost lines of that edge.$movedNote",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("Brightness")
+    NothingCard {
+        SliderControl(
+            "Set bits",
+            binary.activeBrightness,
+            1..100,
+            { "$it%" },
+            onValueChange = { v -> viewModel.updateBinaryBattery { it.copy(activeBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateBinaryBattery { it.copy(activeBrightness = (it.activeBrightness + d).coerceIn(1, 100)) }
+            },
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        PercentControl(
+            "Clear bits",
+            binary.inactiveBrightness,
+            onValueChange = { v -> viewModel.updateBinaryBattery { it.copy(inactiveBrightness = v) } },
+            onStep = { d ->
+                viewModel.updateBinaryBattery { it.copy(inactiveBrightness = (it.inactiveBrightness + d).coerceIn(0, 100)) }
+            },
+        )
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Text(
+        "The status dots use the same two brightnesses. Clear bits at 0% stay dark, so only what is " +
+            "set shows.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = NothingTheme.colors.muted,
+    )
+
+    SectionHeader("On the phone")
+    Text(
+        if (on) {
+            "The toy reads the battery each time its clock updates, once a minute, so it never wakes " +
+                "the phone for it. With the notification pulse on too, the ring pulses around the block."
+        } else {
+            "Switch the addon on at the top of this page first."
         },
         style = MaterialTheme.typography.bodyMedium,
         color = NothingTheme.colors.muted,

@@ -19,8 +19,8 @@ pinned in `gradle/libs.versions.toml` but not yet added to `:app`.
 - Battery ring (`NothingProgressRing` look, rendered as a bitmap).
 
 ## Precise volume
-Writes the volume level as text ("47%" or "7/15") beside the system volume bar while the volume
-changes. The bar itself is left alone. Lives in `volume/`; its page is Widgets › Precise volume.
+Writes the volume level as text ("47%" or "7/15") beside the system volume bar whenever the
+volume popup is up. The bar itself is left alone. Lives in `volume/`; its page is Widgets › Precise volume.
 
 ### How it works
 - `PreciseVolumeService` is an accessibility service, the only kind of app component that can both
@@ -30,14 +30,20 @@ changes. The bar itself is left alone. Lives in `volume/`; its page is Widgets �
   AudioService on every change. It is a protected broadcast, so only the system can send it.
   Only media, ring, notification, alarm and call volume count (`VolumeStreams`); streams that
   follow one of them send their own broadcasts with the same press.
+- The first press often changes nothing. With nothing playing, AudioService only opens the popup
+  and drops the adjustment (`VolumeController.suppressAdjustment`), so no broadcast comes. The
+  service therefore also takes window-change events: when a system window that could be the popup
+  opens, it looks for the bar for 600 ms. Which stream the popup shows is then read off the bar:
+  the stream whose level matches how full the slider is (media first, or call during a call).
 - While a label is due, the service looks every 100 ms for the bar: system windows titled as the
   volume controls (AOSP: "Media volume controls") or, failing that, ones small enough not to be
   the shade or lock screen; in them, the first node with a range (a slider). `VolumeBar` picks
   the window and places the label on the side facing the middle of the screen, clear of the
-  popup's edge. Nothing else is looked at: it takes no accessibility events and filters no keys.
+  popup's edge. It filters no keys, and the only events it takes are window changes.
 - `LabelTimeline` decides when the label shows: with the bar, hidden soon after the bar goes.
   Once the bar has been found, a change without it (an app setting the volume quietly) shows
-  nothing. Until then, the label stands in at the right edge for 3 s after the last change.
+  nothing. Until then, the label stands in at the right edge for 3 s after the last change; a
+  window opening never brings the stand-in.
 
 ### Limits
 - Nothing shows with the screen off: Android doesn't show the popup then either.

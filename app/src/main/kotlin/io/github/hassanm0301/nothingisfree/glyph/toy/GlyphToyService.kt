@@ -31,14 +31,11 @@ import kotlinx.coroutines.launch
  * when they leave; in between the toy draws on the [GlyphMatrixManager], which every toy in the
  * process shares through [arbiter].
  *
- * A toy only names itself ([toyId]) and its face ([faces]). The base runs the [ToyLoop], repaints
- * on each AOD tick, and adds the addons switched on for the toy in [AddonPreferences]: the
- * notification pulse, the battery level and the battery ring.
+ * A toy only gives its face ([faces]). The base runs the [ToyLoop], repaints on each AOD tick, and
+ * adds the addons switched on in [AddonPreferences], which every toy shares: the notification
+ * pulse and a battery addon.
  */
 abstract class GlyphToyService : Service() {
-
-    /** Which toy this is: picks its addons in [AddonPreferences]. */
-    abstract val toyId: ToyId
 
     /** The toy's face on a [size]x[size] matrix, emitted again whenever its options change. */
     protected abstract fun faces(size: Int): Flow<ToyFace>
@@ -102,20 +99,17 @@ abstract class GlyphToyService : Service() {
             is24Hour = { DateFormat.is24HourFormat(this) },
             // Held for what is left of a running pulse, and let go when it ends or is switched off.
             keepAwake = { forMs -> if (forMs != null) wakeLock.acquire(forMs) else releaseWakeLock() },
-            batteryLevel = { BatteryLevel.read(this) },
+            batteryState = { BatteryLevel.read(this) },
         )
         loop = toyLoop
         job = scope.launch {
             toyLoop.run(
                 faces(size),
-                AddonPreferences.enabledFlow(AddonId.NOTIFICATION_PULSE, toyId),
+                AddonPreferences.enabledFlow(AddonId.NOTIFICATION_PULSE),
                 AddonPreferences.pulse,
                 RecentNotifications.lastAlertAt,
                 RecentNotifications.anyShowing,
-                AddonPreferences.enabledFlow(AddonId.BATTERY_LEVEL, toyId),
-                AddonPreferences.battery,
-                AddonPreferences.enabledFlow(AddonId.BATTERY_RING, toyId),
-                AddonPreferences.ring,
+                AddonPreferences.batteryLook(),
             )
         }
     }

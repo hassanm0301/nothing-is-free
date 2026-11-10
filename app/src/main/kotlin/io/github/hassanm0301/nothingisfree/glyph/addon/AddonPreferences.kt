@@ -9,26 +9,44 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.updateAndGet
 
 /**
- * Addons draw on top of any Glyph Toy. Each is switched on per toy. Persisted by [name], so
- * don't rename entries.
+ * What an addon shows. At most one addon of each category is on at a time, in the order the Glyph
+ * tab lists them.
  */
-enum class AddonId(val title: String, val summary: String) {
+enum class AddonCategory(val title: String) {
+    NOTIFICATION("Notification"),
+    BATTERY("Battery"),
+}
+
+/**
+ * Addons draw on top of whichever Glyph Toy is showing. Each is switched on or off once, for every
+ * toy, and at most one per [category] is on. Persisted by [name], so don't rename entries.
+ */
+enum class AddonId(val title: String, val summary: String, val category: AddonCategory) {
     NOTIFICATION_PULSE(
         "Notification pulse",
         "The outer ring pulses in a pattern you set after a notification",
+        AddonCategory.NOTIFICATION,
     ),
     BATTERY_LEVEL(
         "Battery level",
         "Five dots along one edge show how much charge is left",
+        AddonCategory.BATTERY,
+    ),
+    BINARY_BATTERY(
+        "Binary battery",
+        "The exact percentage in binary-coded decimal on a 5x2 block, with charging and battery saver",
+        AddonCategory.BATTERY,
     ),
     BATTERY_RING(
         "Battery ring",
         "A line all around the edge empties from the top as the charge drops",
+        AddonCategory.BATTERY,
     ),
 }
 
@@ -113,7 +131,7 @@ data class PulseSettings(
     }
 }
 
-/** The edge of the matrix the battery bar sits on: its outermost line of LEDs on that side. */
+/** The edge of the matrix a battery addon sits on, from its outermost line of LEDs inwards. */
 enum class BatteryEdge(val label: String) {
     TOP("Top"),
     BOTTOM("Bottom"),
@@ -121,7 +139,7 @@ enum class BatteryEdge(val label: String) {
     RIGHT("Right"),
     ;
 
-    /** Whether the bar runs across the matrix (top or bottom) rather than up it. */
+    /** Whether the addon runs across the matrix (top or bottom) rather than up it. */
     val horizontal: Boolean get() = this == TOP || this == BOTTOM
 }
 
@@ -140,13 +158,30 @@ enum class BatteryDrain(val label: String) {
  * @property drain which way the bar empties when [edge] is the top or bottom; ignored on the sides.
  * @property brightness the dots still holding charge.
  * @property emptyBrightness the dots already used up; 0 leaves them dark, so only the charge shows.
+ * @property fadeHighestDot dim the highest lit dot by how much of its share is left: from
+ *   [brightness] with its share full down towards [emptyBrightness] as it runs out. At 70% the
+ *   fourth of five dots holds half its 20%, so it sits halfway between the two.
  */
 data class BatterySettings(
     val edge: BatteryEdge = BatteryEdge.TOP,
     val drain: BatteryDrain = BatteryDrain.RIGHT_TO_LEFT,
     val brightness: Int = 100,
     val emptyBrightness: Int = 10,
-)
+    val fadeHighestDot: Boolean = false,
+) : BatteryLook
+
+/**
+ * How the binary battery addon looks. One setting for every toy. Brightness values are 0..100 %.
+ *
+ * @property edge where the 5x2 block goes, if it fits beside the toy's face (see [BinaryBattery]).
+ * @property activeBrightness set bits, and the status dots when on.
+ * @property inactiveBrightness clear bits, and the status dots when off; 0 leaves them dark.
+ */
+data class BinaryBatterySettings(
+    val edge: BatteryEdge = BatteryEdge.LEFT,
+    val activeBrightness: Int = 100,
+    val inactiveBrightness: Int = 10,
+) : BatteryLook
 
 /** Which way the battery ring empties from the top: the used-up part sweeps this way round. */
 enum class RingDirection(val label: String) {
@@ -165,18 +200,21 @@ data class BatteryRingSettings(
     val direction: RingDirection = RingDirection.CLOCKWISE,
     val brightness: Int = 100,
     val emptyBrightness: Int = 10,
-)
+) : BatteryLook
+
+/**
+ * The settings of a [AddonCategory.BATTERY] addon: what it looks like, and so where it goes. A toy
+ * shows at most one.
+ */
+sealed interface BatteryLook
 
 /**
  * Addon settings, shared by the app UI and the toy services (same process). [init] runs from
  * `NothingIsFreeApp.onCreate`.
  */
 object AddonPreferences {
-    /**
-     * Where each addon starts out on: the pulse on the Digital clock, as before addons existed.
-     * Others start off everywhere.
-     */
-    private val defaults = mapOf(AddonId.NOTIFICATION_PULSE to setOf(ToyId.DIGITAL_CLOCK))
+    /** The addons on to begin with: the pulse, which the clock had built in before addons existed. */
+    private val defaults = setOf(AddonId.NOTIFICATION_PULSE)
 
     private const val KEY_STEPS = "pulse_steps"
     private const val KEY_REPEAT_COUNT = "pulse_repeat"
@@ -186,6 +224,10 @@ object AddonPreferences {
     private const val KEY_BATTERY_DRAIN = "battery_drain"
     private const val KEY_BATTERY_BRIGHTNESS = "battery_brightness_percent"
     private const val KEY_BATTERY_EMPTY_BRIGHTNESS = "battery_empty_brightness_percent"
+    private const val KEY_BATTERY_FADE = "battery_fade_highest_dot"
+    private const val KEY_BINARY_EDGE = "binary_battery_edge"
+    private const val KEY_BINARY_ACTIVE = "binary_battery_active_percent"
+    private const val KEY_BINARY_INACTIVE = "binary_battery_inactive_percent"
     private const val KEY_RING_DIRECTION = "battery_ring_direction"
     private const val KEY_RING_BRIGHTNESS = "battery_ring_brightness_percent"
     private const val KEY_RING_EMPTY_BRIGHTNESS = "battery_ring_empty_brightness_percent"
@@ -198,16 +240,20 @@ object AddonPreferences {
     private const val KEY_LEGACY_WINDOW = "pulse_window_seconds"
     private const val LEGACY_PERIOD_MS = 2_000L
 
-    private fun keyToys(addon: AddonId) = "toys_${addon.name.lowercase()}"
+    private fun keyOn(addon: AddonId) = "on_${addon.name.lowercase()}"
+
+    /** Before addons were switched for every toy at once: the names of the toys each was on for. */
+    private fun keyLegacyToys(addon: AddonId) = "toys_${addon.name.lowercase()}"
 
     private var prefs: SharedPreferences? = null
     private val _enabled = MutableStateFlow(defaults)
     private val _pulse = MutableStateFlow(PulseSettings())
     private val _battery = MutableStateFlow(BatterySettings())
-    private val _ring = MutableStateFlow(BatteryRingSettings())
+    private val _binaryBattery = MutableStateFlow(BinaryBatterySettings())
+    private val _batteryRing = MutableStateFlow(BatteryRingSettings())
 
-    /** For each addon, the toys it is switched on for. */
-    val enabled: StateFlow<Map<AddonId, Set<ToyId>>> = _enabled.asStateFlow()
+    /** The addons switched on, at most one per category. Each draws on whichever toy is showing. */
+    val enabled: StateFlow<Set<AddonId>> = _enabled.asStateFlow()
 
     /** The notification pulse's settings. */
     val pulse: StateFlow<PulseSettings> = _pulse.asStateFlow()
@@ -215,17 +261,24 @@ object AddonPreferences {
     /** The battery level addon's settings. */
     val battery: StateFlow<BatterySettings> = _battery.asStateFlow()
 
+    /** The binary battery addon's settings. */
+    val binaryBattery: StateFlow<BinaryBatterySettings> = _binaryBattery.asStateFlow()
+
     /** The battery ring addon's settings. */
-    val ring: StateFlow<BatteryRingSettings> = _ring.asStateFlow()
+    val batteryRing: StateFlow<BatteryRingSettings> = _batteryRing.asStateFlow()
 
     fun init(context: Context) {
         val p = context.getSharedPreferences("glyph_addons", Context.MODE_PRIVATE)
         prefs = p
-        _enabled.value = AddonId.entries.associateWith { addon ->
-            p.getStringSet(keyToys(addon), null)
-                ?.mapNotNull { name -> ToyId.entries.firstOrNull { it.name == name } }?.toSet()
-                ?: defaults[addon].orEmpty()
-        }
+        _enabled.value = onePerCategory(
+            AddonId.entries.filter { addon ->
+                addonStartsOn(
+                    saved = if (p.contains(keyOn(addon))) p.getBoolean(keyOn(addon), false) else null,
+                    legacyToys = p.getStringSet(keyLegacyToys(addon), null),
+                    default = addon in defaults,
+                )
+            }.toSet(),
+        )
         val d = PulseSettings()
         _pulse.value = PulseSettings(
             steps = p.getString(KEY_STEPS, null)?.let(PulseSettings::decode) ?: d.steps,
@@ -246,9 +299,17 @@ object AddonPreferences {
             brightness = percent(p, KEY_BATTERY_BRIGHTNESS, KEY_LEGACY_BATTERY_BRIGHTNESS, b.brightness)
                 .coerceAtLeast(1),
             emptyBrightness = percent(p, KEY_BATTERY_EMPTY_BRIGHTNESS, KEY_LEGACY_BATTERY_EMPTY_BRIGHTNESS, b.emptyBrightness),
+            fadeHighestDot = p.getBoolean(KEY_BATTERY_FADE, b.fadeHighestDot),
+        )
+        val bb = BinaryBatterySettings()
+        _binaryBattery.value = BinaryBatterySettings(
+            edge = p.getString(KEY_BINARY_EDGE, null)
+                ?.let { s -> BatteryEdge.entries.firstOrNull { it.name == s } } ?: bb.edge,
+            activeBrightness = p.getInt(KEY_BINARY_ACTIVE, bb.activeBrightness).coerceIn(1, 100),
+            inactiveBrightness = p.getInt(KEY_BINARY_INACTIVE, bb.inactiveBrightness).coerceIn(0, 100),
         )
         val r = BatteryRingSettings()
-        _ring.value = BatteryRingSettings(
+        _batteryRing.value = BatteryRingSettings(
             direction = p.getString(KEY_RING_DIRECTION, null)
                 ?.let { s -> RingDirection.entries.firstOrNull { it.name == s } } ?: r.direction,
             brightness = p.getInt(KEY_RING_BRIGHTNESS, r.brightness).coerceIn(1, 100),
@@ -269,19 +330,57 @@ object AddonPreferences {
         return count.toInt()
     }
 
-    fun isEnabled(addon: AddonId, toy: ToyId): Boolean = toy in _enabled.value[addon].orEmpty()
+    fun isEnabled(addon: AddonId): Boolean = addon in _enabled.value
 
-    /** Whether [addon] is on for [toy], as it changes. */
-    fun enabledFlow(addon: AddonId, toy: ToyId): Flow<Boolean> =
-        enabled.map { toy in it[addon].orEmpty() }.distinctUntilChanged()
+    /** Whether [addon] is on, as it changes. */
+    fun enabledFlow(addon: AddonId): Flow<Boolean> = enabled.map { addon in it }.distinctUntilChanged()
 
-    fun setEnabled(addon: AddonId, toy: ToyId, on: Boolean) {
-        val all = _enabled.updateAndGet { current ->
-            val toys = current[addon].orEmpty()
-            current + (addon to if (on) toys + toy else toys - toy)
-        }
-        prefs?.edit { putStringSet(keyToys(addon), all[addon].orEmpty().map { it.name }.toSet()) }
+    /**
+     * Switch [addon] on or off for every toy. Switching it on switches off the other addon of its
+     * category, if one was on: one addon per category.
+     */
+    fun setEnabled(addon: AddonId, on: Boolean) {
+        val all = _enabled.updateAndGet { current -> withAddon(current, addon, on) }
+        prefs?.edit { AddonId.entries.forEach { a -> putBoolean(keyOn(a), a in all) } }
     }
+
+    /**
+     * The battery addon that is on, as its settings (null with none), as either changes. The toy
+     * services draw it; see [BatteryLook].
+     */
+    fun batteryLook(): Flow<BatteryLook?> =
+        combine(enabled, battery, binaryBattery, batteryRing) { on, bar, binary, ring ->
+            batteryLook(on, bar, binary, ring)
+        }.distinctUntilChanged()
+
+    /** The settings of the battery addon in [on], or null for none. */
+    fun batteryLook(
+        on: Set<AddonId>,
+        bar: BatterySettings,
+        binary: BinaryBatterySettings,
+        ring: BatteryRingSettings = BatteryRingSettings(),
+    ): BatteryLook? =
+        when (active(on, AddonCategory.BATTERY)) {
+            AddonId.BATTERY_LEVEL -> bar
+            AddonId.BINARY_BATTERY -> binary
+            AddonId.BATTERY_RING -> ring
+            else -> null
+        }
+
+    /** The addon of [category] in [on], or null for none. */
+    fun active(on: Set<AddonId>, category: AddonCategory): AddonId? =
+        AddonId.entries.firstOrNull { it.category == category && it in on }
+
+    /** [current] with [addon] switched on or off, and the rest of its category off if on. */
+    internal fun withAddon(current: Set<AddonId>, addon: AddonId, on: Boolean): Set<AddonId> =
+        if (on) current.filterTo(mutableSetOf()) { it.category != addon.category } + addon else current - addon
+
+    /**
+     * [on] with at most one addon per category: the first in [AddonId] order stays. Only matters
+     * for settings carried over from per-toy switches, where two toys could each have had their own.
+     */
+    internal fun onePerCategory(on: Set<AddonId>): Set<AddonId> =
+        on.filterTo(mutableSetOf()) { addon -> active(on, addon.category) == addon }
 
     fun updatePulse(transform: (PulseSettings) -> PulseSettings) {
         val s = _pulse.updateAndGet { transform(it).normalized() }
@@ -300,11 +399,21 @@ object AddonPreferences {
             putString(KEY_BATTERY_DRAIN, s.drain.name)
             putInt(KEY_BATTERY_BRIGHTNESS, s.brightness.coerceIn(1, 100))
             putInt(KEY_BATTERY_EMPTY_BRIGHTNESS, s.emptyBrightness.coerceIn(0, 100))
+            putBoolean(KEY_BATTERY_FADE, s.fadeHighestDot)
         }
     }
 
-    fun updateRing(transform: (BatteryRingSettings) -> BatteryRingSettings) {
-        val s = _ring.updateAndGet(transform)
+    fun updateBinaryBattery(transform: (BinaryBatterySettings) -> BinaryBatterySettings) {
+        val s = _binaryBattery.updateAndGet(transform)
+        prefs?.edit {
+            putString(KEY_BINARY_EDGE, s.edge.name)
+            putInt(KEY_BINARY_ACTIVE, s.activeBrightness.coerceIn(1, 100))
+            putInt(KEY_BINARY_INACTIVE, s.inactiveBrightness.coerceIn(0, 100))
+        }
+    }
+
+    fun updateBatteryRing(transform: (BatteryRingSettings) -> BatteryRingSettings) {
+        val s = _batteryRing.updateAndGet(transform)
         prefs?.edit {
             putString(KEY_RING_DIRECTION, s.direction.name)
             putInt(KEY_RING_BRIGHTNESS, s.brightness.coerceIn(1, 100))
@@ -319,3 +428,11 @@ object AddonPreferences {
         else -> default
     }
 }
+
+/**
+ * Whether an addon starts out on: as last [saved]; or, never switched since addons went global, on
+ * if it was on for any toy in [legacyToys] (toy names, from when each toy had its own switches);
+ * or else its [default].
+ */
+internal fun addonStartsOn(saved: Boolean?, legacyToys: Set<String>?, default: Boolean): Boolean =
+    saved ?: legacyToys?.let { names -> ToyId.entries.any { it.name in names } } ?: default

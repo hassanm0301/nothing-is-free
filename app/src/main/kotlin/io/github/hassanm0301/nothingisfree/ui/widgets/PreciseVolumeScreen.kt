@@ -71,7 +71,7 @@ fun PreciseVolumeScreen(viewModel: AppViewModel, insets: PaddingValues, onBack: 
             onBack = onBack,
             kicker = "Volume",
             title = "Precise volume",
-            body = "The volume level as text, beside the volume bar while you change the volume. " +
+            body = "The volume level as text, beside the volume bar whenever it shows. " +
                 "The bar itself stays as it is.",
         )
         item {
@@ -116,10 +116,10 @@ fun PreciseVolumeScreen(viewModel: AppViewModel, insets: PaddingValues, onBack: 
 
             SectionHeader("Good to know")
             Text(
-                "To find the volume bar it looks at system windows only, and only while the volume is " +
-                    "changing. It doesn't look at other apps, and it stores and sends nothing. Nothing " +
-                    "shows while the screen is off. If the bar can't be found, the level shows near the " +
-                    "right edge of the screen instead.",
+                "To find the volume bar it looks only at system windows, and only when the volume " +
+                    "changes or one of them opens. It doesn't read what other apps show, and it stores " +
+                    "and sends nothing. Nothing shows while the screen is off. If the bar can't be found " +
+                    "after a volume change, the level shows near the right edge of the screen instead.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = NothingTheme.colors.muted,
             )

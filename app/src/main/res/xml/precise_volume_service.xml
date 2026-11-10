@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Precise volume (volume/PreciseVolumeService). No event types and no key filtering: it reads the
-  window list, and the content of system windows, only to find the volume bar while a label is due.
-  Not an accessibility tool, so it says so. On Android 17, Advanced Protection mode turns such
+  Precise volume (volume/PreciseVolumeService). No key filtering. It takes window-change events to
+  notice the volume popup opening, and reads the content of system windows only to find the volume
+  bar while a label is due. notificationTimeout 0 delivers every window change instead of merging
+  them. Not an accessibility tool, so it says so. On Android 17, Advanced Protection mode turns such
   services off.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/precise_volume_description"
     android:isAccessibilityTool="false"
+    android:notificationTimeout="0"
     android:summary="@string/precise_volume_summary" />

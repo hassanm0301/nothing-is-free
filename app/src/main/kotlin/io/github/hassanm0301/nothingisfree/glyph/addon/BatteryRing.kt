@@ -6,31 +6,24 @@ import io.github.hassanm0301.nothingisfree.glyph.toy.ToyFace
 import kotlin.math.PI
 import kotlin.math.atan2
 
-/** The battery ring to show: the phone's charge, 0..100, drawn with [settings]. */
-data class RingGauge(val settings: BatteryRingSettings, val percent: Int)
-
 /**
  * The battery ring addon: the outermost line of LEDs, all the way around the round matrix, shows
  * the phone's charge. Full, the whole ring is lit. As the charge drops it empties from the top,
  * the used-up part sweeping [RingDirection.CLOCKWISE] or anticlockwise until only the dot just
- * before the top is left. Each dot is an equal share of the charge and stays lit until its share
+ * beside the top is left. Each dot is an equal share of the charge and stays lit until its share
  * is used up, so the last one shows down to 1%.
  */
 object BatteryRing {
 
     /**
      * The ring's dots on [face], in the order they light: the first holds the last of the charge,
-     * the last (the top one) goes out first. The ring is the matrix edge, less what the face
-     * occupies and [exclude] (the battery bar's dots, when that addon is on too).
+     * the last (the top one) goes out first. The ring is the matrix edge less what the face
+     * occupies: the same LEDs as the notification pulse.
      */
-    fun cells(
-        face: ToyFace,
-        settings: BatteryRingSettings,
-        exclude: Set<Pair<Int, Int>> = emptySet(),
-    ): List<Pair<Int, Int>> {
+    fun cells(face: ToyFace, settings: BatteryRingSettings): List<Pair<Int, Int>> {
         val c = (face.size - 1) / 2.0
         // The order the ring empties in: from the top, round the way it drains.
-        val drainOrder = NotificationPulse.ring(face, exclude).sortedBy { (x, y) ->
+        val drainOrder = NotificationPulse.ring(face).sortedBy { (x, y) ->
             val clockwise = angle(x - c, y - c)
             if (settings.direction == RingDirection.CLOCKWISE) clockwise else (2 * PI - clockwise) % (2 * PI)
         }
@@ -49,11 +42,11 @@ object BatteryRing {
     /** How many of [dots] are lit at [percent]: each holds an equal share, lit until it is used up. */
     fun lit(percent: Int, dots: Int): Int = BatteryBar.lit(percent, dots)
 
-    /** Draw [gauge] on [frame] over [ring], the cells from [cells]: lit dots, then the used-up ones. */
-    fun draw(frame: DotMatrix, ring: List<Pair<Int, Int>>, gauge: RingGauge) {
-        val lit = lit(gauge.percent, ring.size)
-        val on = Brightness.level(gauge.settings.brightness)
-        val off = Brightness.level(gauge.settings.emptyBrightness)
+    /** Draw [percent] with [s] on [frame] over [ring], the cells from [cells]: lit dots, then the used-up ones. */
+    fun draw(frame: DotMatrix, ring: List<Pair<Int, Int>>, s: BatteryRingSettings, percent: Int) {
+        val lit = lit(percent, ring.size)
+        val on = Brightness.level(s.brightness)
+        val off = Brightness.level(s.emptyBrightness)
         ring.forEachIndexed { i, (x, y) -> frame[x, y] = if (i < lit) on else off }
     }
 }

@@ -20,11 +20,17 @@ data class ScreenRect(val left: Int, val top: Int, val right: Int, val bottom: I
 data class SystemWindow(val id: Int, val layer: Int, val bounds: ScreenRect, val titleSaysVolume: Boolean)
 
 /**
+ * A slider found in a window: where it is, and how full it shows (0..1) if it says.
+ */
+data class Slider(val bounds: ScreenRect, val fill: Float?)
+
+/**
  * What the label is placed against: beside [outline] if the bar is [vertical], else above it (or
  * below). The outline is the volume slider, stretched across the bar to the edges of the popup
  * window around it where that is known, so the label sits clear of the popup, not on its edge.
+ * [fill] is how full the bar shows (0..1), if its slider says.
  */
-data class Bar(val outline: ScreenRect, val vertical: Boolean)
+data class Bar(val outline: ScreenRect, val vertical: Boolean, val fill: Float? = null)
 
 /** Finding the system volume bar on screen, and placing the label beside it. */
 object VolumeBar {
@@ -43,28 +49,33 @@ object VolumeBar {
         return titled.ifEmpty { windows.filter { isSmall(it, screen) } }.sortedByDescending { it.layer }
     }
 
+    /** Whether [window] could be the volume popup: titled as the volume controls, or small. */
+    fun couldBePopup(window: SystemWindow, screen: ScreenRect): Boolean =
+        window.titleSaysVolume || isSmall(window, screen)
+
     /**
      * The bar in candidate [window], given the first [slider] found in it (null if none). The
      * slider, stretched across to the window's edges if the window is small and, across the bar,
      * no more than half the screen (so it is just the popup). Without a slider, the whole window
      * if it is titled as the volume controls and small.
      */
-    fun bar(window: SystemWindow, slider: ScreenRect?, screen: ScreenRect): Bar? {
+    fun bar(window: SystemWindow, slider: Slider?, screen: ScreenRect): Bar? {
         val small = isSmall(window, screen)
         val w = window.bounds
-        if (slider == null || slider.isEmpty) {
+        val s = slider?.bounds
+        if (s == null || s.isEmpty) {
             return if (window.titleSaysVolume && small) Bar(w, vertical = w.height >= w.width) else null
         }
-        val vertical = slider.height >= slider.width
+        val vertical = s.height >= s.width
         val outline = when {
-            !small -> slider
+            !small -> s
             vertical && w.width * 2 <= screen.width ->
-                ScreenRect(minOf(w.left, slider.left), slider.top, maxOf(w.right, slider.right), slider.bottom)
+                ScreenRect(minOf(w.left, s.left), s.top, maxOf(w.right, s.right), s.bottom)
             !vertical && w.height * 2 <= screen.height ->
-                ScreenRect(slider.left, minOf(w.top, slider.top), slider.right, maxOf(w.bottom, slider.bottom))
-            else -> slider
+                ScreenRect(s.left, minOf(w.top, s.top), s.right, maxOf(w.bottom, s.bottom))
+            else -> s
         }
-        return Bar(outline, vertical)
+        return Bar(outline, vertical, slider.fill)
     }
 
     /**
