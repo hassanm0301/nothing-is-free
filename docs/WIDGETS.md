@@ -1,22 +1,48 @@
-# Widget groundwork
+# Widgets
 
-Widgets will use Jetpack Glance (`androidx.glance:glance-appwidget` + `glance-material3`), already
-pinned in `gradle/libs.versions.toml` but not yet added to `:app`.
+## Clock
+A home-screen widget: the day and date, the time and the next alarm, centred, white, with no
+background. In Ndot (the default) or NType, chosen on Widgets › Clock. Lives in `widget/`.
 
-## Plan
-1. Add the Glance dependencies to `app/build.gradle.kts`.
-2. Create `widget/<Name>Widget.kt` (`GlanceAppWidget`) and `<Name>WidgetReceiver.kt`.
-3. Register the receiver in the manifest with `android.appwidget.action.APPWIDGET_UPDATE` and an
-   `res/xml/<name>_widget_info.xml` (`targetCellWidth/Height`, `previewLayout`, `resizeMode`).
-4. Reuse the theme: Glance has its own `GlanceTheme`; map `NothingColors` into a `ColorProviders`
-   and use Ndot via `FontFamily` on `TextStyle` where supported, otherwise pre-render dot-matrix
-   text with `DotMatrix` into a bitmap.
-5. Keep every widget to the same visual rules as the app (see `docs/DESIGN.md`): flat card, 28dp
-   radius, one accent.
+### How it works
+- **The app draws it.** A widget's layout is inflated by the launcher, in a context that refuses
+  an app's own fonts (`RemoteViews.RemoteViewsContextWrapper.isRestricted`; `TextView` then skips
+  `@font` resources). A `TextClock` would tick for free but only in a system font. So
+  `ClockWidgetRenderer` draws the three lines into a bitmap and the layout (`clock_widget.xml`) is
+  one `ImageView`. This is also why the widgets don't use Glance: its text can't carry the fonts either.
+- **Size.** The bitmap is drawn to fit the widget's portrait size, from the launcher's widget
+  options, and the `ImageView` scales it for anything else. The fit is worked out as if an alarm
+  were set, so the time doesn't change size when one comes or goes.
+- **The minute tick.** Drawing it ourselves means redrawing it each minute. `ClockWidget.update`
+  sets an exact `AlarmManager.RTC` alarm for the start of the next minute, each time it draws.
+  `RTC`, not `RTC_WAKEUP`: it never wakes the phone. Asleep, nothing runs; the tick is delivered as
+  the phone wakes, so the widget can be a moment behind right after unlocking. With no widget
+  placed there is no tick. `USE_EXACT_ALARM` lets it be exact without asking the user.
+- **The next alarm** is `AlarmManager.getNextAlarmClock()`: free, no permission. It is the next
+  alarm any app set with `setAlarmClock`, usually the clock app's, though a calendar or automation
+  app can set one too. `ClockWidgetProvider` takes `NEXT_ALARM_CLOCK_CHANGED`, `TIME_SET`,
+  `TIMEZONE_CHANGED` and `LOCALE_CHANGED` from the manifest (all exempt from the implicit broadcast
+  limits) and redraws at once.
+- **Restarting.** The tick dies with a reboot, an app update or a force stop. After the first two
+  the system asks every widget to update, which sets it again. After a force stop the widget stays
+  as it was until the app is opened (`AppViewModel` redraws it) or the next alarm changes.
+- **A tap** opens the clock app's alarms (`AlarmClock.ACTION_SHOW_ALARMS`).
+- `ClockWidgetText` (the wording, and when the next minute starts) is plain Kotlin and unit tested.
+  The picker's preview is `drawable-nodpi/clock_widget_preview.png`.
 
-## Candidate first widgets
-- Dot-matrix clock (reuses `DotMatrixClock`'s frame).
-- Battery ring (`NothingProgressRing` look, rendered as a bitmap).
+### Limits
+- The text is always white: it is unreadable on a very light wallpaper.
+- Not checked on a phone yet.
+
+### Checking it on the phone
+1. Widgets › Clock › **Add to home screen**, or add it from the launcher's widget list.
+2. Watch it change on the minute; set or switch off an alarm and see the bottom line follow.
+3. Lock the phone for a few minutes, unlock: it should show the right time within a second.
+
+### More widgets
+Same recipe: an `AppWidgetProvider`, a renderer that draws with the bundled fonts or `DotMatrix`
+into a bitmap, an `ImageView` layout, and `res/xml/<name>_widget_info.xml`. Keep to the look in
+`docs/DESIGN.md`. Anything that doesn't change by the minute needs no tick.
 
 ## Precise volume
 Writes the volume level as text ("47%" or "7/15") beside the system volume bar whenever the
