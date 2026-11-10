@@ -17,6 +17,8 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
+import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockSettings
 import io.github.hassanm0301.nothingisfree.ui.theme.ThemeMode
@@ -97,6 +99,12 @@ class AppViewModel : ViewModel() {
 
     fun updateBinaryClock(transform: (BinaryClockSettings) -> BinaryClockSettings) =
         BinaryClockPreferences.update(transform)
+
+    /** Compact digital clock toy options; the toy redraws as soon as they change. */
+    val compactClock: StateFlow<CompactClockSettings> = CompactClockPreferences.settings
+
+    fun updateCompactClock(transform: (CompactClockSettings) -> CompactClockSettings) =
+        CompactClockPreferences.update(transform)
 
     /** How Precise volume writes the level beside the volume bar. */
     val volumeFormat: StateFlow<VolumeFormat> = PreciseVolumePreferences.format

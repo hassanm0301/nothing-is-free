@@ -1,6 +1,8 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotFont
+import io.github.hassanm0301.nothingisfree.dotmatrix.DotFontMinimal
+import io.github.hassanm0301.nothingisfree.dotmatrix.DotFontSmall
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -38,18 +40,61 @@ class CompactClockFaceTest {
 
     @Test
     fun `every digit pair fits the round matrix and leaves the edge free`() {
-        for (size in listOf(13, 25)) {
-            val f = CompactClockFace(size)
+        for (size in listOf(13, 25)) for (font in CompactClockFont.entries) {
+            val f = CompactClockFace(size, CompactClockSettings(font))
             for (h in 0..23) for (m in 0..9) {
                 f.render(LocalTime.of(h, m), true).forEach { x, y, v ->
                     if (v > 0) {
-                        assertTrue("$size: ($x,$y) is off the matrix", f.isLed(x, y))
-                        assertTrue("$size: ($x,$y) is outside the face", f.occupies(x, y))
+                        assertTrue("$size $font: ($x,$y) is off the matrix", f.isLed(x, y))
+                        assertTrue("$size $font: ($x,$y) is outside the face", f.occupies(x, y))
                     }
                 }
             }
             assertFalse(f.occupies(size / 2, 0))
             assertFalse(f.occupies(0, size / 2))
+        }
+    }
+
+    @Test
+    fun `large font by default`() {
+        assertEquals(CompactClockFont.LARGE, CompactClockSettings().font)
+    }
+
+    @Test
+    fun `standard font draws the Digital clock's 3x5 digits centred`() {
+        val standard = CompactClockFace(13, CompactClockSettings(CompactClockFont.STANDARD))
+        val expected = DotMatrix(13, 13).apply { text("94", x = 3, y = 4, font = DotFontSmall) }
+        assertEquals(expected.toFrame().toList(), standard.render(LocalTime.of(9, 41), true).toFrame().toList())
+    }
+
+    @Test
+    fun `standard font is the Digital clock's at every size, undoubled`() {
+        for (size in listOf(13, 25)) {
+            assertEquals(ClockFont.STANDARD.typeface(size), CompactClockFont.STANDARD.typeface(size))
+            assertEquals(1, CompactClockFont.STANDARD.scale(size))
+        }
+        val big = CompactClockFace(25, CompactClockSettings(CompactClockFont.STANDARD))
+        val expected = DotMatrix(25, 25).apply { text("94", x = 7, y = 9, font = DotFont) }
+        assertEquals(expected.toFrame().toList(), big.render(LocalTime.of(9, 41), true).toFrame().toList())
+    }
+
+    @Test
+    fun `minimal font draws the minimal digits and centres a narrow 1`() {
+        val minimal = CompactClockFace(13, CompactClockSettings(CompactClockFont.MINIMAL))
+        val wide = DotMatrix(13, 13).apply { text("94", x = 3, y = 4, font = DotFontMinimal) }
+        assertEquals(wide.toFrame().toList(), minimal.render(LocalTime.of(9, 41), true).toFrame().toList())
+        // "11" is 3 wide in a 7-wide box.
+        val narrow = DotMatrix(13, 13).apply { text("11", x = 5, y = 4, font = DotFontMinimal) }
+        assertEquals(narrow.toFrame().toList(), minimal.render(LocalTime.of(11, 10), true).toFrame().toList())
+    }
+
+    @Test
+    fun `small fonts occupy the same 7x5 box whatever the time`() {
+        for (font in listOf(CompactClockFont.STANDARD, CompactClockFont.MINIMAL)) {
+            val f = CompactClockFace(13, CompactClockSettings(font))
+            for (x in 0 until 13) for (y in 0 until 13) {
+                assertEquals("$font ($x,$y)", x in 3..9 && y in 4..8, f.occupies(x, y))
+            }
         }
     }
 

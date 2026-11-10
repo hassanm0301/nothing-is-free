@@ -509,6 +509,7 @@ private fun BinaryBatteryOptions(viewModel: AppViewModel, on: Boolean) {
     val binary by viewModel.binaryBattery.collectAsStateWithLifecycle()
     val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
+    val compactClock by viewModel.compactClock.collectAsStateWithLifecycle()
     val phone by viewModel.batteryState.collectAsStateWithLifecycle()
     // null follows the phone; otherwise what was picked here.
     var pickedPercent by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -577,7 +578,7 @@ private fun BinaryBatteryOptions(viewModel: AppViewModel, on: Boolean) {
     }
     // Toys whose face leaves no room at the chosen edge, and where the block goes on them instead.
     val moved = ToyId.entries.mapNotNull { toy ->
-        val placed = BinaryBattery.placement(toy.face(PREVIEW_SIZE, digitalClock, binaryClock), binary)
+        val placed = BinaryBattery.placement(toy.face(PREVIEW_SIZE, digitalClock, binaryClock, compactClock), binary)
         if (placed == binary.edge) null else toy to placed
     }
     Spacer(Modifier.height(Spacing.sm))

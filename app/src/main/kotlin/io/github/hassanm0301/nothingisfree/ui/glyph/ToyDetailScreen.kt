@@ -54,6 +54,7 @@ fun ToyDetailScreen(
     val addons by viewModel.addons.collectAsStateWithLifecycle()
     val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
+    val compactClock by viewModel.compactClock.collectAsStateWithLifecycle()
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
     val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
     val notificationsShowing by viewModel.notificationsShowing.collectAsStateWithLifecycle()
@@ -61,7 +62,9 @@ fun ToyDetailScreen(
     val now by rememberNow()
     var previewing by rememberSaveable { mutableStateOf(false) }
 
-    val face = remember(toy, digitalClock, binaryClock) { toy.face(PREVIEW_SIZE, digitalClock, binaryClock) }
+    val face = remember(toy, digitalClock, binaryClock, compactClock) {
+        toy.face(PREVIEW_SIZE, digitalClock, binaryClock, compactClock)
+    }
     val pulseOn = AddonId.NOTIFICATION_PULSE in addons
     val pulse by rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
     val battery = batteryGauge(viewModel)
@@ -94,11 +97,7 @@ fun ToyDetailScreen(
             when (toy) {
                 ToyId.DIGITAL_CLOCK -> DigitalClockOptions(digitalClock, onChange = viewModel::updateDigitalClock)
                 ToyId.BINARY_CLOCK -> BinaryClockOptions(binaryClock, onChange = viewModel::updateBinaryClock)
-                ToyId.COMPACT_CLOCK -> Text(
-                    "No options: it always shows the hour's second digit and the minute's first.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NothingTheme.colors.muted,
-                )
+                ToyId.COMPACT_CLOCK -> CompactClockOptions(compactClock, onChange = viewModel::updateCompactClock)
             }
         }
         item {

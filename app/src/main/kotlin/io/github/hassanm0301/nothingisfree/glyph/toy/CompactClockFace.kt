@@ -1,22 +1,26 @@
 package io.github.hassanm0301.nothingisfree.glyph.toy
 
-import io.github.hassanm0301.nothingisfree.dotmatrix.DotFont
 import io.github.hassanm0301.nothingisfree.dotmatrix.DotMatrix
+import io.github.hassanm0301.nothingisfree.dotmatrix.DotTypeface
 import java.time.LocalTime
 
 /**
  * The Compact digital clock toy's frame for a round [size]x[size] Glyph Matrix: just two digits
- * side by side in the 5x7 [DotFont], the second digit of the hour (units) and the first digit of
- * the minute (tens). 12:46 shows `24`, 09:41 shows `94`.
+ * side by side, the second digit of the hour (units) and the first digit of the minute (tens), in
+ * the [settings]' font (see [CompactClockFont]). 12:46 shows `24`, 09:41 shows `94`.
  *
- * The hour follows the phone's 12/24-hour setting. 13 (Phone (4a) Pro) draws the digits 1:1;
- * 25 (Phone (3)) draws each dot as a 2x2 block. The edge is left free for addons.
+ * The hour follows the phone's 12/24-hour setting. The pair is centred, so a font with narrow
+ * digits (the minimal `1`) stays centred. [occupies] is the box the widest two digits need, the
+ * same every minute; the rest is left free for addons.
  */
-class CompactClockFace(override val size: Int) : ToyFace {
-    private val scale = if (size >= 21) 2 else 1
-    private val digitWidth = DotFont['0'].width * scale
-    private val blockWidth = digitWidth * 2 + GAP
-    private val blockHeight = DotFont['0'].height * scale
+class CompactClockFace(
+    override val size: Int,
+    val settings: CompactClockSettings = CompactClockSettings(),
+) : ToyFace {
+    private val font: DotTypeface = settings.font.typeface(size)
+    private val scale = settings.font.scale(size)
+    private val blockWidth = 2 * ('0'..'9').maxOf { font[it].width } * scale + GAP
+    private val blockHeight = font['0'].height * scale
     private val left = (size - blockWidth) / 2
     private val top = (size - blockHeight) / 2
 
@@ -25,14 +29,18 @@ class CompactClockFace(override val size: Int) : ToyFace {
 
     override fun render(time: LocalTime, is24Hour: Boolean): DotMatrix {
         val (first, second) = digits(time, is24Hour)
+        val firstWidth = font[first].width * scale
+        val width = firstWidth + GAP + font[second].width * scale
+        // Rounds down, as the block itself does, so full-width pairs land exactly on `left`.
+        val x = left + (blockWidth - width) / 2
         return DotMatrix(size, size).apply {
-            digit(first, left)
-            digit(second, left + digitWidth + GAP)
+            digit(first, x)
+            digit(second, x + firstWidth + GAP)
         }
     }
 
     private fun DotMatrix.digit(c: Char, x: Int) {
-        val glyph = DotFont[c]
+        val glyph = font[c]
         for (gy in 0 until glyph.height) for (gx in 0 until glyph.width) {
             if (!glyph[gx, gy]) continue
             for (dy in 0 until scale) for (dx in 0 until scale) {

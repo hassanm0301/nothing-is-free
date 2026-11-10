@@ -20,7 +20,7 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   - `ToyFace` – what a toy draws on its own: `render(time, is24Hour)`, plus `occupies(x, y)`, the
     area it keeps for itself, so addons can draw around it.
   - `ToyId` – the toy registry, in the order the Glyph tab lists them.
-    `face(size, digital, binary)` builds a toy's face with its current options. Its names are in
+    `face(size, digital, binary, compact)` builds a toy's face with its current options. Its names are in
     the old per-toy addon settings, still read once (see [addons](#addons)), so don't rename
     entries.
   - `ToyLoop` – the one SDK-free loop every toy runs: a frame each minute and on `refresh()`, one
@@ -133,12 +133,28 @@ Options (`BinaryClockSettings`), applied to the matrix as soon as they change:
 No notification access is needed unless the notification pulse is on.
 
 ### Compact digital clock
-Only two digits, side by side in the 5x7 dot font: the second digit of the hour (its units) and
-the first digit of the minute (its tens). 12:46 shows `24`, 09:41 shows `94`. The hour follows
-the phone's 12/24-hour setting, so 13:05 shows `30` on a 24-hour clock and `10` on a 12-hour one.
-On a 25x25 matrix every dot is drawn as a 2x2 block. The edge is left free for addons. It has no options.
+Only two digits, side by side: the second digit of the hour (its units) and the first digit of
+the minute (its tens). 12:46 shows `24`, 09:41 shows `94`. The hour follows the phone's
+12/24-hour setting, so 13:05 shows `30` on a 24-hour clock and `10` on a 12-hour one. The pair is
+centred, and everything outside its box is left free for addons.
+
+Options (`CompactClockSettings`), applied to the matrix as soon as they change:
+- **Font** (`CompactClockFont`, saved as `font`, the entry name):
+  - `LARGE` (default) – the 5x7 `DotFont`, which fills the 13x13 matrix (an 11x7 box); on a
+    25x25 every dot is drawn as a 2x2 block.
+  - `STANDARD` – the Digital clock's `ClockFont.STANDARD` at the same size: 3x5 digits
+    (`DotFontSmall`) on the 13x13 matrix, 5x7 (`DotFont`, not doubled) on a 25x25. The box is 7x5
+    on the 13x13 (columns 3–9, rows 4–8), so three columns and four rows are free on every side.
+  - `MINIMAL` – the Digital clock's `ClockFont.MINIMAL` (`DotFontMinimal`), in the same 7x5 box:
+    open corners and a one-column `1`.
+
+  The box is the widest two digits of the font, the same every minute, so addons don't move with
+  the time. To add a font: an entry at the end of `CompactClockFont` (label, description,
+  `typeface(size)`, `scale(size)`). Don't rename entries.
 
 - `glyph/toy/CompactClockFace` – the frame.
+- `glyph/toy/CompactClockFont` – the fonts the clock can use.
+- `glyph/toy/CompactClockPreferences` – the saved options.
 - `glyph/toy/CompactClockToyService` – the toy service.
 
 ## Addons
