@@ -27,5 +27,11 @@ object ClockWidgetText {
     /** When the widget next needs redrawing: the start of the minute after [nowMillis]. */
     fun nextMinute(nowMillis: Long): Long = (Math.floorDiv(nowMillis, MINUTE) + 1) * MINUTE
 
+    /** The opaque grey for [shade], 0 (black) to 100 (white), as an ARGB colour. */
+    fun grey(shade: Int): Int {
+        val level = (shade.coerceIn(0, 100) * 255 + 50) / 100
+        return (0xFF shl 24) or (level shl 16) or (level shl 8) or level
+    }
+
     private const val MINUTE = 60_000L
 }

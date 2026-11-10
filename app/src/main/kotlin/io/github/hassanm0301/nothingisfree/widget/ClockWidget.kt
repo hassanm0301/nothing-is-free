@@ -17,7 +17,8 @@ import java.time.ZoneId
 import java.util.Locale
 
 /**
- * The home-screen clock: the day and date, the time and the next alarm, in a Nothing font.
+ * The home-screen clock: the day and date, the time and the next alarm, in a Nothing font and a
+ * grey of the user's choosing.
  *
  * The app draws it ([ClockWidgetRenderer]) and so has to redraw it each minute. That is one alarm
  * a minute that doesn't wake the phone: asleep, nothing runs, and the widget catches up as the
@@ -68,6 +69,7 @@ object ClockWidget {
 
         val lines = lines(context)
         val font = ClockWidgetPreferences.font.value
+        val shade = ClockWidgetPreferences.shade.value
         val density = context.resources.displayMetrics.density
         for (id in ids) {
             // The portrait size: the narrower width and the taller height of the two the launcher gives.
@@ -78,7 +80,7 @@ object ClockWidget {
             val height = ((heightDp - 2 * PADDING_DP) * density).toInt().coerceIn(1, MAX_HEIGHT_PX)
 
             val views = RemoteViews(context.packageName, R.layout.clock_widget)
-            views.setImageViewBitmap(R.id.clock_widget_image, ClockWidgetRenderer.render(context, lines, font, width, height))
+            views.setImageViewBitmap(R.id.clock_widget_image, ClockWidgetRenderer.render(context, lines, font, shade, width, height))
             views.setContentDescription(R.id.clock_widget_image, lines.spoken)
             views.setOnClickPendingIntent(R.id.clock_widget_root, showAlarms(context))
             manager.updateAppWidget(id, views)

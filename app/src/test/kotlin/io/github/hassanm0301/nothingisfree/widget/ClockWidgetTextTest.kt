@@ -46,6 +46,16 @@ class ClockWidgetTextTest {
     }
 
     @Test
+    fun `a shade is an opaque grey from black to white`() {
+        assertEquals(0xFF000000.toInt(), ClockWidgetText.grey(0))
+        assertEquals(0xFF808080.toInt(), ClockWidgetText.grey(50))
+        assertEquals(0xFFFFFFFF.toInt(), ClockWidgetText.grey(100))
+        // Out of range is the nearest end.
+        assertEquals(0xFF000000.toInt(), ClockWidgetText.grey(-5))
+        assertEquals(0xFFFFFFFF.toInt(), ClockWidgetText.grey(140))
+    }
+
+    @Test
     fun `the next redraw is the start of the next minute`() {
         assertEquals(120_000L, ClockWidgetText.nextMinute(60_001L))
         assertEquals(120_000L, ClockWidgetText.nextMinute(119_999L))

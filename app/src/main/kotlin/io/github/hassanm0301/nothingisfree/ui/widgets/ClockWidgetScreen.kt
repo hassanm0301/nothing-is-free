@@ -33,25 +33,29 @@ import io.github.hassanm0301.nothingisfree.ui.components.NothingChip
 import io.github.hassanm0301.nothingisfree.ui.components.NothingScreen
 import io.github.hassanm0301.nothingisfree.ui.components.SectionHeader
 import io.github.hassanm0301.nothingisfree.ui.components.detailHeader
+import io.github.hassanm0301.nothingisfree.ui.glyph.SliderControl
 import io.github.hassanm0301.nothingisfree.ui.theme.NothingTheme
 import io.github.hassanm0301.nothingisfree.ui.theme.Spacing
 import io.github.hassanm0301.nothingisfree.widget.ClockWidget
 import io.github.hassanm0301.nothingisfree.widget.ClockWidgetFont
 import io.github.hassanm0301.nothingisfree.widget.ClockWidgetLines
+import io.github.hassanm0301.nothingisfree.widget.ClockWidgetPreferences
 import io.github.hassanm0301.nothingisfree.widget.ClockWidgetRenderer
 
 /** The size the preview is drawn for, about a 4x2 widget. */
 private val PreviewWidth: Dp = 280.dp
 private val PreviewHeight: Dp = 132.dp
 
-/** Stands in for a wallpaper: the widget's text is white whatever the app's theme. */
-private val PreviewBackdrop = Color(0xFF1A1A1A)
+/** Stand in for a wallpaper, whatever the app's theme: dark behind light text, light behind dark. */
+private val DarkBackdrop = Color(0xFF1A1A1A)
+private val LightBackdrop = Color(0xFFE6E6E6)
 
 /** The clock widget's page: what it looks like now, its font, and putting it on the home screen. */
 @Composable
 fun ClockWidgetScreen(viewModel: AppViewModel, insets: PaddingValues, onBack: () -> Unit) {
     val context = LocalContext.current
     val font by viewModel.clockWidgetFont.collectAsStateWithLifecycle()
+    val shade by viewModel.clockWidgetShade.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
 
     // The next alarm can only have changed while the app was away; read it again on each return.
@@ -73,7 +77,7 @@ fun ClockWidgetScreen(viewModel: AppViewModel, insets: PaddingValues, onBack: ()
         )
         item {
             SectionHeader("Preview")
-            WidgetPreview(lines, font)
+            WidgetPreview(lines, font, shade)
 
             SectionHeader("Font")
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -81,6 +85,22 @@ fun ClockWidgetScreen(viewModel: AppViewModel, insets: PaddingValues, onBack: ()
                     NothingChip(f.title, selected = f == font, onClick = { viewModel.setClockWidgetFont(f) })
                 }
             }
+
+            SectionHeader("Colour")
+            SliderControl(
+                label = "Black to white",
+                value = shade,
+                range = ClockWidgetPreferences.BLACK..ClockWidgetPreferences.WHITE,
+                format = {
+                    when (it) {
+                        ClockWidgetPreferences.BLACK -> "Black"
+                        ClockWidgetPreferences.WHITE -> "White"
+                        else -> "$it% white"
+                    }
+                },
+                onValueChange = viewModel::setClockWidgetShade,
+                onStep = { viewModel.setClockWidgetShade(viewModel.clockWidgetShade.value + it) },
+            )
 
             SectionHeader("Home screen")
             if (ClockWidget.canPin(context)) {
@@ -114,20 +134,20 @@ fun ClockWidgetScreen(viewModel: AppViewModel, insets: PaddingValues, onBack: ()
     }
 }
 
-/** The widget as the home screen draws it, from the same renderer, on a dark backdrop. */
+/** The widget as the home screen draws it, from the same renderer, on a backdrop its colour shows on. */
 @Composable
-private fun WidgetPreview(lines: ClockWidgetLines, font: ClockWidgetFont) {
+private fun WidgetPreview(lines: ClockWidgetLines, font: ClockWidgetFont, shade: Int) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val picture = remember(lines, font, density) {
+    val picture = remember(lines, font, shade, density) {
         with(density) {
-            ClockWidgetRenderer.render(context, lines, font, PreviewWidth.roundToPx(), PreviewHeight.roundToPx())
+            ClockWidgetRenderer.render(context, lines, font, shade, PreviewWidth.roundToPx(), PreviewHeight.roundToPx())
         }.asImageBitmap()
     }
     Box(
         Modifier
             .fillMaxWidth()
-            .background(PreviewBackdrop, MaterialTheme.shapes.large)
+            .background(if (shade < 50) LightBackdrop else DarkBackdrop, MaterialTheme.shapes.large)
             .padding(Spacing.cardPadding),
         contentAlignment = Alignment.Center,
     ) {

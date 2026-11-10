@@ -115,6 +115,15 @@ class AppViewModel : ViewModel() {
         ClockWidget.update(NothingIsFreeApp.instance)
     }
 
+    /** The clock widget's text colour, a grey from 0 (black) to 100 (white). */
+    val clockWidgetShade: StateFlow<Int> = ClockWidgetPreferences.shade
+
+    /** Change the clock widget's colour and redraw the ones on the home screen. */
+    fun setClockWidgetShade(shade: Int) {
+        ClockWidgetPreferences.setShade(shade)
+        ClockWidget.update(NothingIsFreeApp.instance)
+    }
+
     /** Self-update from GitHub releases; checked once each time the view model is created. */
     val update: StateFlow<AppUpdater.State> = AppUpdater.state
 

@@ -3,7 +3,6 @@ package io.github.hassanm0301.nothingisfree.widget
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -13,7 +12,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Draws the clock widget as a picture: the date, the time and the next alarm, centred, in white.
+ * Draws the clock widget as a picture: the date, the time and the next alarm, centred, in one grey.
  *
  * A picture, because a widget's layout is inflated by the launcher in a restricted context that
  * refuses an app's own fonts (`RemoteViews.RemoteViewsContextWrapper.isRestricted`), so a
@@ -31,11 +30,19 @@ object ClockWidgetRenderer {
     /**
      * The widget for [lines], as large as fits in [maxWidth] x [maxHeight] pixels. The size is
      * worked out as if an alarm were set, so the time doesn't jump when one comes or goes; the
-     * picture itself is cropped to what is drawn.
+     * picture itself is cropped to what is drawn. [shade] is the text's grey, 0 (black) to 100 (white).
      */
-    fun render(context: Context, lines: ClockWidgetLines, font: ClockWidgetFont, maxWidth: Int, maxHeight: Int): Bitmap {
-        val timePaint = paint(context, font.timeFont)
-        val linePaint = paint(context, font.lineFont)
+    fun render(
+        context: Context,
+        lines: ClockWidgetLines,
+        font: ClockWidgetFont,
+        shade: Int,
+        maxWidth: Int,
+        maxHeight: Int,
+    ): Bitmap {
+        val colour = ClockWidgetText.grey(shade)
+        val timePaint = paint(context, font.timeFont, colour)
+        val linePaint = paint(context, font.lineFont, colour)
 
         val reference = Layout(lines, timePaint, linePaint, timeSize = 100f)
         val scale = min(maxWidth / reference.width, maxHeight / reference.heightWithAlarm)
@@ -50,8 +57,8 @@ object ClockWidgetRenderer {
         return bitmap
     }
 
-    private fun paint(context: Context, fontRes: Int) = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-        color = Color.WHITE
+    private fun paint(context: Context, fontRes: Int, colour: Int) = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        color = colour
         typeface = typefaces.getOrPut(fontRes) { context.resources.getFont(fontRes) }
         textAlign = Paint.Align.LEFT
     }

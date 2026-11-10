@@ -21,11 +21,21 @@ enum class ClockWidgetFont(val title: String, @FontRes val timeFont: Int, @FontR
  */
 object ClockWidgetPreferences {
     private const val KEY_FONT = "font"
+    private const val KEY_SHADE = "shade"
+
+    /** A shade is a grey, from [BLACK] to [WHITE]. */
+    const val BLACK = 0
+    const val WHITE = 100
 
     private var prefs: SharedPreferences? = null
     private val _font = MutableStateFlow(ClockWidgetFont.NDOT)
 
     val font: StateFlow<ClockWidgetFont> = _font.asStateFlow()
+
+    private val _shade = MutableStateFlow(WHITE)
+
+    /** The colour of the widget's text: a grey from [BLACK] to [WHITE]. */
+    val shade: StateFlow<Int> = _shade.asStateFlow()
 
     fun init(context: Context) {
         val p = context.getSharedPreferences("clock_widget", Context.MODE_PRIVATE)
@@ -33,6 +43,13 @@ object ClockWidgetPreferences {
         _font.value = p.getString(KEY_FONT, null)
             ?.let { name -> ClockWidgetFont.entries.firstOrNull { it.name == name } }
             ?: ClockWidgetFont.NDOT
+        _shade.value = p.getInt(KEY_SHADE, WHITE).coerceIn(BLACK, WHITE)
+    }
+
+    fun setShade(shade: Int) {
+        val s = shade.coerceIn(BLACK, WHITE)
+        _shade.value = s
+        prefs?.edit { putInt(KEY_SHADE, s) }
     }
 
     fun setFont(font: ClockWidgetFont) {

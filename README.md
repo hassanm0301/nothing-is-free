@@ -18,7 +18,8 @@ Three tabs:
     when full and empties from the top, clockwise or anticlockwise, as the charge drops.
 - **Widgets** – **Precise volume**: the volume level as text (percent or steps) beside the system
   volume bar while you change the volume, from an accessibility service. **Clock**: a home-screen
-  widget with the time, the day and date, and the next alarm, in Ndot or NType (see `docs/WIDGETS.md`).
+  widget with the time, the day and date, and the next alarm, in Ndot or NType and any grey from
+  black to white (see `docs/WIDGETS.md`).
 - **Settings** – updates, theme, device info and about.
 
 ## Build

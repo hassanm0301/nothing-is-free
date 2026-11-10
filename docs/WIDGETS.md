@@ -1,8 +1,9 @@
 # Widgets
 
 ## Clock
-A home-screen widget: the day and date, the time and the next alarm, centred, white, with no
-background. In Ndot (the default) or NType, chosen on Widgets › Clock. Lives in `widget/`.
+A home-screen widget: the day and date, the time and the next alarm, centred, with no
+background. In Ndot (the default) or NType, and in any grey from black to white (white by
+default), both chosen on Widgets › Clock. Lives in `widget/`.
 
 ### How it works
 - **The app draws it.** A widget's layout is inflated by the launcher, in a context that refuses
@@ -31,7 +32,7 @@ background. In Ndot (the default) or NType, chosen on Widgets › Clock. Lives i
   The picker's preview is `drawable-nodpi/clock_widget_preview.png`.
 
 ### Limits
-- The text is always white: it is unreadable on a very light wallpaper.
+- The text is one grey, set by hand: it doesn't follow the wallpaper.
 - Not checked on a phone yet.
 
 ### Checking it on the phone
