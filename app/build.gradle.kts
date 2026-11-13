@@ -30,8 +30,8 @@ android {
         applicationId = "io.github.hassanm0301.nothingisfree"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 17
-        versionName = "0.8.0-beta.2"
+        versionCode = 18
+        versionName = "0.8.0-beta.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

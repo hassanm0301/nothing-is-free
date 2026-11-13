@@ -49,14 +49,15 @@ fun ToyDetailScreen(
     val digitalClock by viewModel.digitalClock.collectAsStateWithLifecycle()
     val binaryClock by viewModel.binaryClock.collectAsStateWithLifecycle()
     val compactClock by viewModel.compactClock.collectAsStateWithLifecycle()
+    val analogClock by viewModel.analogClock.collectAsStateWithLifecycle()
     val lastAlertAt by viewModel.lastAlertAt.collectAsStateWithLifecycle()
     val pulseSettings by viewModel.pulse.collectAsStateWithLifecycle()
     val notificationsShowing by viewModel.notificationsShowing.collectAsStateWithLifecycle()
     val now by rememberNow()
     var previewing by rememberSaveable { mutableStateOf(false) }
 
-    val face = remember(toy, digitalClock, binaryClock, compactClock) {
-        toy.face(PREVIEW_SIZE, digitalClock, binaryClock, compactClock)
+    val face = remember(toy, digitalClock, binaryClock, compactClock, analogClock) {
+        toy.face(PREVIEW_SIZE, digitalClock, binaryClock, compactClock, analogClock)
     }
     val pulseOn = AddonId.NOTIFICATION_PULSE in addons
     val pulse by rememberPulse(lastAlertAt, pulseSettings, pulseOn, notificationsShowing)
@@ -91,6 +92,7 @@ fun ToyDetailScreen(
                 ToyId.DIGITAL_CLOCK -> DigitalClockOptions(digitalClock, onChange = viewModel::updateDigitalClock)
                 ToyId.BINARY_CLOCK -> BinaryClockOptions(binaryClock, onChange = viewModel::updateBinaryClock)
                 ToyId.COMPACT_CLOCK -> CompactClockOptions(compactClock, onChange = viewModel::updateCompactClock)
+                ToyId.ANALOG_CLOCK -> AnalogClockOptions(analogClock, onChange = viewModel::updateAnalogClock)
             }
         }
         item {

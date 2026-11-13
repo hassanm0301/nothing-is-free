@@ -111,6 +111,27 @@
                 android:value="1" />
         </service>
 
+        <service
+            android:name=".glyph.toy.AnalogClockToyService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.nothing.glyph.TOY" />
+            </intent-filter>
+            <meta-data
+                android:name="com.nothing.glyph.toy.name"
+                android:resource="@string/analog_clock_name" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.image"
+                android:resource="@drawable/analog_clock_preview" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.summary"
+                android:resource="@string/analog_clock_summary" />
+            <meta-data
+                android:name="com.nothing.glyph.toy.aod_support"
+                android:value="1" />
+        </service>
+
         <!-- PackageInstaller status for self-updates; only our own PendingIntent targets it. -->
         <receiver
             android:name=".core.update.InstallResultReceiver"

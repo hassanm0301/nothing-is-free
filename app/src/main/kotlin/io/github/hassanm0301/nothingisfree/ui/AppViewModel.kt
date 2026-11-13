@@ -15,6 +15,8 @@ import io.github.hassanm0301.nothingisfree.glyph.addon.BatteryRingSettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.BatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.BinaryBatterySettings
 import io.github.hassanm0301.nothingisfree.glyph.addon.PulseSettings
+import io.github.hassanm0301.nothingisfree.glyph.toy.AnalogClockPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.AnalogClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockSettings
 import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockPreferences
@@ -108,6 +110,12 @@ class AppViewModel : ViewModel() {
 
     fun updateCompactClock(transform: (CompactClockSettings) -> CompactClockSettings) =
         CompactClockPreferences.update(transform)
+
+    /** Analog clock toy options; the toy redraws as soon as they change. */
+    val analogClock: StateFlow<AnalogClockSettings> = AnalogClockPreferences.settings
+
+    fun updateAnalogClock(transform: (AnalogClockSettings) -> AnalogClockSettings) =
+        AnalogClockPreferences.update(transform)
 
     /** How Precise volume writes the level beside the volume bar. */
     val volumeFormat: StateFlow<VolumeFormat> = PreciseVolumePreferences.format

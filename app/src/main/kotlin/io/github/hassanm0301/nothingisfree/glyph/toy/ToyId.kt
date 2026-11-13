@@ -8,6 +8,7 @@ enum class ToyId(val title: String, val summary: String) {
     DIGITAL_CLOCK("Digital clock", "Hours over minutes in a dot font"),
     BINARY_CLOCK("Binary clock", "Hours and minutes in binary-coded decimal"),
     COMPACT_CLOCK("Compact digital clock", "The hour's second digit and the minute's first"),
+    ANALOG_CLOCK("Analog clock", "A short hour hand and a long minute hand"),
     ;
 
     /** The face on a [size]x[size] matrix, with the toy's current options. */
@@ -16,9 +17,11 @@ enum class ToyId(val title: String, val summary: String) {
         digital: DigitalClockSettings,
         binary: BinaryClockSettings,
         compact: CompactClockSettings,
+        analog: AnalogClockSettings,
     ): ToyFace = when (this) {
         DIGITAL_CLOCK -> ClockFace(size, digital)
         BINARY_CLOCK -> BinaryClockFace(size).with(binary)
         COMPACT_CLOCK -> CompactClockFace(size, compact)
+        ANALOG_CLOCK -> AnalogClockFace(size, analog)
     }
 }
