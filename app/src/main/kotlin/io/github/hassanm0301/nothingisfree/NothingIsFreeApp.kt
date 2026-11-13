@@ -5,6 +5,7 @@ import io.github.hassanm0301.nothingisfree.core.update.UpdatePreferences
 import io.github.hassanm0301.nothingisfree.glyph.GlyphController
 import io.github.hassanm0301.nothingisfree.glyph.GlyphModule
 import io.github.hassanm0301.nothingisfree.glyph.addon.AddonPreferences
+import io.github.hassanm0301.nothingisfree.glyph.toy.AnalogClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.BinaryClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.CompactClockPreferences
 import io.github.hassanm0301.nothingisfree.glyph.toy.DigitalClockPreferences
@@ -23,6 +24,7 @@ class NothingIsFreeApp : Application() {
         DigitalClockPreferences.init(this)
         BinaryClockPreferences.init(this)
         CompactClockPreferences.init(this)
+        AnalogClockPreferences.init(this)
         UpdatePreferences.init(this)
         PreciseVolumePreferences.init(this)
         ClockWidgetPreferences.init(this)

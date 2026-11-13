@@ -15,12 +15,12 @@ Reference: <https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer
   `core/device/NothingDevice`.
 - `glyph/GlyphController` – the app-facing interface for in-app frames, still `NoOpGlyphController`.
 - `dotmatrix/DotMatrix` – the frame model. `toFrame(max = 4095)` yields the `int[]` the SDK takes.
-- `glyph/toy/` – the [toys](#toys), **Digital clock**, **Binary clock** and **Compact digital clock**,
-  sharing:
+- `glyph/toy/` – the [toys](#toys), **Digital clock**, **Binary clock**, **Compact digital clock**
+  and **Analog clock**, sharing:
   - `ToyFace` – what a toy draws on its own: `render(time, is24Hour)`, plus `occupies(x, y)`, the
     area it keeps for itself, so addons can draw around it.
   - `ToyId` – the toy registry, in the order the Glyph tab lists them.
-    `face(size, digital, binary, compact)` builds a toy's face with its current options. Its names are in
+    `face(size, digital, binary, compact, analog)` builds a toy's face with its current options. Its names are in
     the old per-toy addon settings, still read once (see [addons](#addons)), so don't rename
     entries.
   - `ToyLoop` – the one SDK-free loop every toy runs: a frame each minute and on `refresh()`, one
@@ -157,6 +157,38 @@ Options (`CompactClockSettings`), applied to the matrix as soon as they change:
 - `glyph/toy/CompactClockPreferences` – the saved options.
 - `glyph/toy/CompactClockToyService` – the toy service.
 
+### Analog clock
+A dial with two hands from the centre dot, each one dot wide: a short hour hand and a long minute
+hand. On the 13x13 matrix the minute hand reaches 5 dots from the centre, to the line just inside
+the edge, and the hour hand 3. The hour hand moves with the minutes, as on a real clock, so at
+3:30 it is halfway between 3 and 4. A dial has no 24-hour form: the phone's 12/24-hour setting
+changes nothing, and 15:00 looks like 3:00.
+
+- **How a hand is drawn** – the dots nearest its line, one per row for a hand nearer upright and
+  one per column for one nearer level, so its dots always touch. A sloping hand takes fewer steps
+  to stay about as long as an upright one (four diagonal dots at 45°), and no hand ever reaches the
+  edge. Times that mirror each other draw mirror images.
+- **How exact it is** – as exact as 13 dots allow. 56 of the 60 minutes draw a minute hand of their
+  own, so it usually reads to the minute against the one before; 7 and 8 past share the diagonal,
+  as do 22/23, 37/38 and 52/53. The hour hand has 40 shapes around the dial and changes every few
+  minutes. On a 25x25 the hands are 11 and 7 dots and every minute differs.
+- **When the hands meet** – they share the centre dot, and where one lies over the other (noon,
+  about 1:05, …) only the longer one shows past the hour hand's tip, as on a real clock. At 6:00
+  they make one line, longer above the centre.
+- **With addons** – the face keeps every dot a hand can reach, which on the 13x13 is everything but
+  the edge. The pulse ring, Battery level and Battery ring are all on the edge and fit as usual.
+  Binary battery needs two lines and fits nowhere on this toy; its page says so.
+
+Options (`AnalogClockSettings`), applied to the matrix as soon as they change:
+- **Hour hand / Minute hand** – the brightness of each, 1..100 % (default 100 % for both), turned
+  into matrix levels by `dotmatrix/Brightness`. Setting them apart tells the hands apart by more
+  than their length; where they overlap the brighter one shows. Saved as `hour_brightness_percent`
+  and `minute_brightness_percent`, always brought within 1..100 (`AnalogClockSettings.normalized`).
+
+- `glyph/toy/AnalogClockFace` – the frame: `minuteHand`, `hourHand` and what they can reach.
+- `glyph/toy/AnalogClockPreferences` – the saved options.
+- `glyph/toy/AnalogClockToyService` – the toy service.
+
 ## Addons
 Addons draw on top of whichever toy is showing, only outside the area its face occupies. Each is
 switched on or off once, for every toy: there is no per-toy choice, so picking another toy on the
@@ -178,7 +210,7 @@ the other), the first in `AddonId` order stays on.
 | Category | Addons |
 | --- | --- |
 | Notification | Notification pulse |
-| Battery | Battery level, Binary battery |
+| Battery | Battery level, Binary battery, Battery ring |
 
 ### Notification pulse
 When an alerting notification arrives, the outer ring of the matrix (the edge LEDs the face leaves
