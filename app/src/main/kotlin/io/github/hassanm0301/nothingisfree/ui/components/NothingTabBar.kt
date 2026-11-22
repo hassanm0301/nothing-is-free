@@ -89,6 +89,9 @@ object TabIcons {
     /** A round matrix with a lit centre. */
     val Glyph = DotGlyph(listOf(".###.", "#...#", "#.#.#", "#...#", ".###."))
 
+    /** A side key on a phone's edge. */
+    val EssentialKey = DotGlyph(listOf("####.", "#..##", "#..##", "#...#", "####."))
+
     /** Four tiles. */
     val Widgets = DotGlyph(listOf("##.##", "##.##", ".....", "##.##", "##.##"))
 

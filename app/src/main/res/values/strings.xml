@@ -14,4 +14,7 @@
     <string name="precise_volume_description">Shows the volume level as text beside the volume bar whenever it shows.\n\nTo find the volume bar it looks only at system windows, and only when the volume changes or a system window opens. It doesn\'t read what other apps show, and it stores and sends nothing.</string>
     <string name="clock_widget_name">Clock</string>
     <string name="clock_widget_description">The time, the day and date, and your next alarm, in a Nothing font</string>
+    <string name="essential_key_name">Essential key</string>
+    <string name="essential_key_summary">Runs the actions you pick for the Essential Key</string>
+    <string name="essential_key_description">Runs the actions you pick in Nothing is Free for single, double, triple and long presses of the Essential Key.\n\nIt watches hardware key presses only, to find the Essential Key. It can\'t see what is on screen or what you type, and it stores and sends nothing.</string>
 </resources>
