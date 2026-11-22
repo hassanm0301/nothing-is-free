@@ -13,6 +13,25 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- Clock widget: a tap opens the clock app's alarms, which clock apps guard with this. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Essential key: the optional vibration on a press. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!--
+      Essential key: lists this app under Do Not Disturb access, which the Do Not Disturb action and
+      the ringer cycle's silent step need. Granted by the user in Settings.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <queries>
+        <!-- Essential key: the apps a gesture can open. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- Essential key: Nothing's default key functions, whose state the app shows and changes. -->
+        <package android:name="com.nothing.ntessentialspace" />
+        <package android:name="com.nothing.ntessentialrecorder" />
+        <package android:name="com.essentialintelligence" />
+    </queries>
 
     <application
         android:name=".NothingIsFreeApp"
@@ -153,6 +172,35 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/precise_volume_service" />
         </service>
+
+        <!--
+          Essential key: runs the actions picked for the Essential Key's gestures. It filters key
+          events and nothing else. Switched on by the user in Accessibility settings.
+        -->
+        <service
+            android:name=".essentialkey.EssentialKeyService"
+            android:exported="true"
+            android:label="@string/essential_key_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/essential_key_service" />
+        </service>
+
+        <!--
+          Essential key: hands this app Shizuku's binder, so the default functions can be turned
+          off where App info greys out Disable. Only Shizuku (holding this permission) may call it.
+        -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <!--
           Clock widget. Besides the launcher's updates it takes the broadcasts that change what it

@@ -1,7 +1,7 @@
 # Nothing is Free
 
 An Android app in the style of Nothing OS. Jetpack Compose, Kotlin, min Android 14.
-Three tabs:
+Four tabs:
 - **Glyph** – always-on Glyph Toys for the Phone (4a) Pro, in two lists (see `docs/GLYPH.md`):
   - *Toys*: **Digital clock** (Standard or Minimal font, the fewest LEDs; adjustable brightness),
     **Binary clock** (HH:MM in BCD, dot or 2x2 square bits, adjustable active/inactive brightness),
@@ -18,6 +18,18 @@ Three tabs:
     with what is left of its 20%. **Binary battery**: the exact percentage in BCD on a 5x2 block at
     an edge, with charging and battery saver dots. **Battery ring**: the whole outer edge is lit
     when full and empties from the top, clockwise or anticlockwise, as the charge drops.
+- **Essential key** – give the Essential Key's single, double, triple and long press each an
+  action, from an accessibility service that sees key presses only. Actions: open an app, open any
+  link or `intent:` URI, camera, voice assistant, flashlight, ring/vibrate/silent, Do Not Disturb,
+  mute media, play/pause, next/previous track, volume panel, screenshot, lock screen, notifications,
+  quick settings, recent apps, home, back, power menu and split screen. **Default functions**
+  shows Nothing's own key handlers (Essential Space, Recorder, Essential intelligence) and turns
+  them off or back on, through [Shizuku](https://shizuku.rikka.app/) or by hand from App info, to
+  free the single press (double, triple and long press need nothing turned off). Also: vibration on
+  a press (Light, Medium, Strong or a custom pattern), ignore the key while locked, Key setup to
+  learn the key's scan code, and Key test. Ported from
+  [Essential Key Tools](https://github.com/KoukeNeko/EssentialKeyTools) by KoukeNeko (MIT, see
+  `docs/licenses/EssentialKeyTools.txt`).
 - **Widgets** – **Precise volume**: the volume level as text (percent or steps) beside the system
   volume bar while you change the volume, from an accessibility service. **Clock**: a home-screen
   widget with the time, the day and date, and the next alarm, in Ndot or NType and any grey from

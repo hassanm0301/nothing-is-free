@@ -67,6 +67,9 @@ android {
 
     buildFeatures {
         compose = true
+        // Essential key: the Shizuku user service that turns the default functions off is a
+        // separate process, reached over an AIDL interface.
+        aidl = true
     }
 
     packaging {
@@ -98,6 +101,10 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
+
+    // Essential key: turns Nothing's default key functions off through Shizuku, when it's running.
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

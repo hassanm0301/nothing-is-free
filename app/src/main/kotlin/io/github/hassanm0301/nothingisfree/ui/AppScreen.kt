@@ -22,12 +22,14 @@ import io.github.hassanm0301.nothingisfree.core.update.AppUpdater
 import io.github.hassanm0301.nothingisfree.ui.components.NothingTab
 import io.github.hassanm0301.nothingisfree.ui.components.NothingTabBar
 import io.github.hassanm0301.nothingisfree.ui.components.TabIcons
+import io.github.hassanm0301.nothingisfree.ui.essentialkey.EssentialKeyScreen
 import io.github.hassanm0301.nothingisfree.ui.glyph.GlyphScreen
 import io.github.hassanm0301.nothingisfree.ui.settings.SettingsScreen
 import io.github.hassanm0301.nothingisfree.ui.widgets.WidgetsScreen
 
 private enum class AppTab(val tab: NothingTab) {
     GLYPH(NothingTab("Glyph", TabIcons.Glyph)),
+    ESSENTIAL_KEY(NothingTab("Essential key", TabIcons.EssentialKey)),
     WIDGETS(NothingTab("Widgets", TabIcons.Widgets)),
     SETTINGS(NothingTab("Settings", TabIcons.Settings)),
 }
@@ -37,7 +39,7 @@ private val AppUpdater.State.needsAttention: Boolean
     get() = this is AppUpdater.State.Available || this is AppUpdater.State.Downloading ||
         this is AppUpdater.State.Installing || (this is AppUpdater.State.Failed && release != null)
 
-/** The app: three tabs over a Nothing tab bar. Back from another tab returns to Glyph. */
+/** The app: four tabs over a Nothing tab bar. Back from another tab returns to Glyph. */
 @Composable
 fun AppScreen(viewModel: AppViewModel = viewModel()) {
     var current by rememberSaveable { mutableStateOf(AppTab.GLYPH) }
@@ -60,6 +62,7 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
         tabState.SaveableStateProvider(current.name) {
             when (current) {
                 AppTab.GLYPH -> GlyphScreen(viewModel, insets)
+                AppTab.ESSENTIAL_KEY -> EssentialKeyScreen(insets)
                 AppTab.WIDGETS -> WidgetsScreen(viewModel, insets)
                 AppTab.SETTINGS -> SettingsScreen(viewModel, insets)
             }
