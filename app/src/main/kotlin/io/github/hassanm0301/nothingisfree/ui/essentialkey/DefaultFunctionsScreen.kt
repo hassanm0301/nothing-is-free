@@ -21,7 +21,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import io.github.hassanm0301.nothingisfree.essentialkey.unlock.DefaultFunctions
 import io.github.hassanm0301.nothingisfree.essentialkey.unlock.PackageState
@@ -51,6 +54,8 @@ fun DefaultFunctionsScreen(insets: PaddingValues, onBack: () -> Unit) {
     var states by remember { mutableStateOf(DefaultFunctions.states(context)) }
     var shizukuStatus by remember { mutableStateOf(shizuku.status()) }
     var busy by remember { mutableStateOf(false) }
+    // What went wrong last time Shizuku was asked, kept on the page (a toast is gone too soon to read).
+    var failure by remember { mutableStateOf<String?>(null) }
 
     fun refresh() {
         states = DefaultFunctions.states(context)
@@ -130,16 +135,22 @@ fun DefaultFunctionsScreen(insets: PaddingValues, onBack: () -> Unit) {
                                 onClick = {
                                     scope.launch {
                                         busy = true
-                                        val ok = shizuku.setPackageEnabled(state.packageName, enabled = state.isFreed)
+                                        val error = shizuku.setPackageEnabled(state.packageName, enabled = state.isFreed)
                                         busy = false
-                                        if (!ok) {
-                                            Toast.makeText(context, "Shizuku couldn't change $label", Toast.LENGTH_LONG).show()
-                                        }
                                         refresh()
+                                        val after = states.firstOrNull { it.packageName == state.packageName }
+                                        failure = when {
+                                            error != null -> "Couldn't change $label: $error"
+                                            after != null && after.isFreed == state.isFreed ->
+                                                "Android accepted the change, but $label is still " +
+                                                    if (state.isFreed) "off." else "on."
+                                            else -> null
+                                        }
                                     }
                                 },
                             )
                         }
+                        failure?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = NothingTheme.colors.accent) }
                     }
                 }
             }
@@ -147,8 +158,8 @@ fun DefaultFunctionsScreen(insets: PaddingValues, onBack: () -> Unit) {
             item {
                 SectionHeader("By hand")
                 Note(
-                    "Open each one's App info and press Disable (or Enable to undo). Some builds grey " +
-                        "Disable out for system apps; use Shizuku there.",
+                    "Open each one's App info and press Disable (or Enable to undo). Nothing OS doesn't " +
+                        "offer Disable for some of them; use Shizuku or ADB there.",
                 )
                 Spacer(Modifier.height(Spacing.sm))
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -167,7 +178,37 @@ fun DefaultFunctionsScreen(insets: PaddingValues, onBack: () -> Unit) {
                     }
                 }
             }
+
+            item { AdbCommands(installed) }
         }
+    }
+}
+
+/**
+ * The same change from a computer, for when neither App info nor Shizuku will do it. These are
+ * the commands App info's Disable and Enable run, so either can be undone the same way.
+ */
+@Composable
+private fun AdbCommands(installed: List<PackageState>) {
+    val clipboard = LocalClipboardManager.current
+    val off = installed.joinToString("\n") { "adb shell pm disable-user --user 0 ${it.packageName}" }
+    val on = installed.joinToString("\n") { "adb shell pm enable --user 0 ${it.packageName}" }
+    SectionHeader("With ADB")
+    Note("From a computer with USB debugging on (or wireless debugging), run:")
+    Spacer(Modifier.height(Spacing.sm))
+    NothingCard(outlined = true) {
+        MonoLabel("Turn off")
+        Spacer(Modifier.height(Spacing.xs))
+        Text(off, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+        Spacer(Modifier.height(Spacing.md))
+        MonoLabel("Turn back on")
+        Spacer(Modifier.height(Spacing.xs))
+        Text(on, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+    }
+    Spacer(Modifier.height(Spacing.sm))
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        NothingButton("Copy off", variant = ButtonVariant.Ghost, onClick = { clipboard.setText(AnnotatedString(off)) })
+        NothingButton("Copy on", variant = ButtonVariant.Ghost, onClick = { clipboard.setText(AnnotatedString(on)) })
     }
 }
 

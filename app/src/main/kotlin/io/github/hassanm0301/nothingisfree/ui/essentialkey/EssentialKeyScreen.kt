@@ -154,6 +154,7 @@ private fun KeyList(insets: PaddingValues, onPick: (KeyGesture) -> Unit, onOpen:
                         summary = actionSummary(context, action),
                         status = when {
                             action == KeyAction.None -> "Nothing"
+                            blocked && defaults == UnlockStatus.PARTIALLY_FREED -> "Nothing may still take it"
                             blocked -> "Essential Space still takes it"
                             else -> action.kind.group.title
                         },

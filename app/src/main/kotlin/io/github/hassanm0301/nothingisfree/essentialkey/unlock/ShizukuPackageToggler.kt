@@ -57,8 +57,11 @@ class ShizukuPackageToggler(context: Context) {
         }
     }
 
-    /** Returns whether `pm` accepted the change. Binds a fresh service for each call and releases it. */
-    suspend fun setPackageEnabled(packageName: String, enabled: Boolean): Boolean {
+    /**
+     * Null when `pm` accepted the change, otherwise why it didn't. Binds a fresh service for each
+     * call and releases it.
+     */
+    suspend fun setPackageEnabled(packageName: String, enabled: Boolean): String? {
         val service = CompletableDeferred<IPackageToggleService>()
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, binder: IBinder) {
@@ -76,10 +79,10 @@ class ShizukuPackageToggler(context: Context) {
             withContext(Dispatchers.IO) { toggleService.setPackageEnabled(packageName, enabled, userId) }
         } catch (error: RemoteException) {
             Log.w(TAG, "Shizuku could not toggle $packageName", error)
-            false
+            "Shizuku lost the connection"
         } catch (error: TimeoutCancellationException) {
             Log.w(TAG, "Shizuku user service did not start for $packageName", error)
-            false
+            "Shizuku didn't start its helper in time"
         } finally {
             Shizuku.unbindUserService(userServiceArgs, connection, true)
         }
